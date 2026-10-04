@@ -46,29 +46,42 @@ flowchart TD
         IMG["Scanned Images (Vision API)"]
         TXT["Plain Text & Markdown"]
     end
+
     subgraph Indexing ["2. Page-Aware Indexing & Retrieval"]
         Chunker["Page Chunker (400 words)"]
         BM25["BM25Okapi Lexical Index"]
         Retriever["Top-K Relevant Passages"]
         Chunker --> BM25 --> Retriever
     end
+
     subgraph Resilience ["3. Resilience Layer"]
         Pool["API Key Rotation"]
         Cascade["Multi-Model Fallback Cascade"]
         Pool --> Cascade
     end
+
     subgraph Reasoning ["4. Multi-Document Verification"]
         Synthesizer["Grounded Synthesis & Citations"]
         Conflict["Cross-Document Conflict Validator"]
         Uncertainty["Confidence & Caveat Evaluator"]
     end
+
     subgraph Interface ["5. User Interface"]
         Chat["Conversation Stream"]
         Findings["Findings & Contradiction Dossier"]
     end
-    Ingestion --> Chunker
-    Retriever --> Reasoning
-    Cascade --> Reasoning
+
+    PDF --> Chunker
+    IMG --> Chunker
+    TXT --> Chunker
+
+    Retriever --> Synthesizer
+    Retriever --> Conflict
+    Retriever --> Uncertainty
+
+    Cascade --> Synthesizer
+    Cascade --> Conflict
+
     Synthesizer --> Chat
     Conflict --> Findings
     Uncertainty --> Findings
