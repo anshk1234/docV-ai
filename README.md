@@ -1,267 +1,147 @@
-<div align="center">
-
-<img src="./assets/logo.png" alt="docV.ai Logo" width="130" height="130" />
-
 # docV.ai
-### Intelligent Document Investigator & Forensic Discrepancy Engine
 
-**ALGOTHON '26 Official Problem Statement ID:** `ALG-AI-02` (AI / ML Track)  
-*Built for forensic auditors, legal investigators, and compliance teams.*
+Intelligent document investigation and cross-document contradiction detection platform for ALGOTHON 26 (Problem Statement ALG-AI-02).
 
-[![Live App](https://img.shields.io/badge/Demo-docv--ai.vercel.app-cc785c?style=for-the-badge&logo=vercel&logoColor=white)](https://docv-ai.vercel.app)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Google Gemini](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
-[![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Python](https://img.shields.io/badge/Language-Python%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[Live Demo](https://docv-ai.vercel.app)
 
-<br/><br/>
+[![Live Demo](https://img.shields.io/badge/Demo-docv--ai.vercel.app-cc785c)](https://docv-ai.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-16.3.8-black)](https://nextjs.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)](https://fastapi.tiangolo.com)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-[![docV.ai Cross-Document Contradiction Detection](./assets/demo-investigation.png)](https://docv-ai.vercel.app)
+![docV.ai Interface](assets/demo-investigation.png)
 
-*Figure 1: docV.ai Forensic Command Center — Live Cross-Document Contradiction Analysis and Side-by-Side Findings Dossier.*
+## What It Does
 
-</div>
+Information in organizations is frequently dispersed across digital PDFs, scanned documents, and text files that may contain contradictory terms, shifting deadlines, or altered pricing. Traditional search tools and single-document question-answering systems either summarize text uncritically or hallucinate resolutions when sources disagree. docV.ai ingests heterogeneous document collections, retrieves relevant passages using page-aware lexical search, and performs structured multi-document reasoning. It answers factual queries with verbatim citations, isolates cross-document contradictions with severity ratings, and reports calibrated uncertainty scores.
 
----
+## Requirements Coverage
 
-## 📌 Executive Summary
+| ALG-AI-02 Requirement | Implementation in docV.ai |
+| :--- | :--- |
+| Multiple document formats | Ingests digital PDFs via pypdf, images via Gemini Vision, and plain text/markdown. |
+| Extraction / indexing | Splits text into 400-word page-tagged chunks indexed with BM25Okapi for retrieval. |
+| Natural-language Q&A | Generates structured markdown answers strictly grounded in retrieved passages. |
+| Source references | Returns document names, page numbers, and exact verbatim quotation snippets. |
+| Conflict detection | Flags contradictory claims across distinct files with claim comparison and resolution notes. |
+| Uncertainty handling | Outputs confidence score (0-100), uncertainty level, and explicit factor explanations. |
+| Innovation bonus | Detects multi-document discrepancies and communicates uncertainty instead of picking one answer. |
 
-Enterprise decisions rely on information scattered across dozens of PDFs, scanned invoices, email amendments, and contracts. Traditional search tools and naive "Chat with PDF" RAG bots fail in three critical ways:
-1. **Hallucination:** Confidently fabricating answers when evidence is incomplete.
-2. **Blind Consensus:** Failing to detect when two separate documents (e.g. Master Service Agreement vs. an Email Addendum vs. an Invoice) directly contradict each other.
-3. **Lack of Grounding:** Returning vague summaries without exact paragraph and page attribution.
-
-**docV.ai** is a forensic document investigation suite. It ingests multi-format documents (PDFs, images via multimodal vision OCR, TXT, MD), indexes them using hybrid lexical and semantic retrieval, and runs a **dual-pass verification engine** that:
-* Answers investigative questions with exact page and quotation citations.
-* **Automatically detects cross-document contradictions & discrepancies** (The 1st-Place Innovation Bonus).
-* Calculates a real-time **Factual Grounding & Uncertainty Index** with explicit caveat factors.
-* Renders findings inside a **Claude AI-inspired split-screen Command Center** with an interactive **Artifacts Dossier**.
-* Operates on an enterprise-grade **10-Key Resilient Pool & Multi-Model Cascade** with 99.99% fault tolerance.
-
----
-
-## 🎯 Problem Statement Fulfillment (`ALG-AI-02`)
-
-| Official Requirement | What We Built in `docV.ai` | Status |
-| :--- | :--- | :---: |
-| **Multiple document formats** | Native parsing for digital PDFs (`pypdf`), zero-dependency multimodal vision OCR for scanned images/receipts (Gemini Vision), and plain text/markdown. | ✅ Complete |
-| **Extraction / Indexing** | Semantic page-aware chunking + BM25 lexical keyword index for exact numbers, dates, and clauses. | ✅ Complete |
-| **Natural-language Q&A** | Conversational investigative console with rich GitHub-flavored Markdown (headers, bold tags, comparison tables). | ✅ Complete |
-| **Source / Section references** | Interactive page chips linking directly to verbatim quotes with document names and page numbers. | ✅ Complete |
-| **Conflict detection** | Multi-file contradiction detector that extracts competing claims, assigns severity (`HIGH`/`MEDIUM`/`LOW`), and writes a forensic resolution. | ✅ Complete |
-| **Uncertainty handling** | Real-time Grounding Score (0–100%) and explicit caveat factor lists instead of blind hallucinations. | ✅ Complete |
-| **🏆 Innovation / Bonus** | **Cross-Document Discrepancy Matrix:** Detects when two distinct documents conflict on the same entity and communicates uncertainty rather than picking one arbitrarily. | ✅ Complete |
-
----
-
-## 🏗️ System Architecture
+## Architecture
 
 ```mermaid
-flowchart TD
-    subgraph Ingestion ["1. Multi-Format Ingestion"]
-        PDF["Digital PDFs (pypdf & page tracking)"]
-        IMG["Scanned Invoices / Images (Gemini Vision OCR)"]
-        TXT["Plain Text & Markdown Files"]
-    end
-
-    subgraph Indexing ["2. Page-Aware Hybrid Search"]
-        Chunker["Semantic Chunker (300-500 words + overlap)"]
-        BM25["BM25 Lexical / Exact-Match Indexer"]
-        Retriever["Hybrid Retrieval (Top-K Context Passages)"]
-        Chunker --> BM25 --> Retriever
-    end
-
-    subgraph Resilience ["3. Self-Healing Intelligence Engine"]
-        KeyPool["10-Key Round-Robin Rotation Pool (Bypasses 429 Quotas)"]
-        Cascade["Multi-Model Cascade Failover:
-        1. gemini-2.5-flash (Primary)
-        2. gemini-3.8-flash (Tier-1 Backup)
-        3. gemini-flash-latest (Stable Backup)
-        4. gemini-3.1-flash-lite (Ultra-responsive)
-        5. gemini-2.5-flash-lite (Emergency)"]
-        KeyPool --> Cascade
-    end
-
-    subgraph Reasoning ["4. Forensic Verification Engine"]
-        Synthesizer["Grounded Synthesis (Rich Markdown Tables)"]
-        ConflictEngine["Cross-Doc Contradiction & Claim Validator"]
-        UncertaintyScorer["Factual Grounding & Caveat Evaluator"]
-        AntiFalsePositive["Programmatic Filter (Excludes same-file false positives)"]
-        
-        Cascade --> Synthesizer
-        Cascade --> ConflictEngine --> AntiFalsePositive
-        Cascade --> UncertaintyScorer
-    end
-
-    subgraph UI ["5. Claude AI-Inspired Command Center"]
-        Vault["Collapsible Document Vault (Left Drawer)"]
-        Chat["Conversation Stream (Pinned Bottom Input Bar)"]
-        Artifacts["Investigation Dossier (Right Split-Screen Drawer)"]
-        Exporter["1-Click Markdown Audit Report Exporter"]
-    end
-
-    Ingestion --> Chunker
-    Retriever --> Resilience
-    Synthesizer --> Chat
-    AntiFalsePositive --> Artifacts
-    UncertaintyScorer --> Artifacts
-    Artifacts --> Exporter
+flowchart LR
+    Ingest["Ingestion (pypdf, Vision, Text)"] --> Index["Page Chunking & BM25 Index"]
+    Index --> Retrieval["Top-K Passage Retrieval"]
+    Retrieval --> Reasoning["Structured Reasoning Engine"]
+    Reasoning --> Output["Answers, Citations & Conflict Dossier"]
 ```
 
----
+### Key Technical Decisions
+- Page-aware chunking: Chunks are bounded to 400 words with 50-word overlap while preserving document ID and page number for exact citation tracking.
+- BM25 retrieval: Selected for deterministic lexical matching of contract terms, dates, and currency values without vector index overhead.
+- Cross-document conflict validation: An automated filter ensures contradictions are only flagged between distinct files, preventing false positive comparisons within the same document.
+- Calibrated uncertainty scoring: The engine evaluates excerpt sufficiency and source alignment to generate a confidence percentage and specific caveat reasons.
+- Key rotation and model fallback: Requests rotate across configured API keys and fall back through tiered models for resilience under load.
 
-## ✨ Core Innovations & Key Features
+## Demo Walkthrough
 
-### 1. ⚠️ The Cross-Document Conflict Matrix (The Winning Bonus)
-Unlike standard RAG tools that merge contradictory text into a messy hallucination, `docV.ai` actively audits discrepancies across multiple files:
-* **Side-by-Side Comparison:** Compares Claim A (e.g., `Contract_v1.pdf, Page 4`) against Claim B (e.g., `Email_Addendum.txt, Page 1`).
-* **Severity Grading:** Automatically categorizes discrepancies as `HIGH`, `MEDIUM`, or `LOW`.
-* **Auditor's Resolution:** Evaluates document recency and legal hierarchies to explain which document supersedes or why the contradiction exists.
-* **Anti-False-Positive Filter:** Guarantees that internal section distinctions within the same document are never mislabeled as conflicts.
+1. Open https://docv-ai.vercel.app.
+2. Click "Load Demo Case" to load three synthetic files: Master_Service_Agreement_v1.txt, Email_Addendum_Scope_March.txt, and Vendor_Invoice_INV-089.txt.
+3. The platform runs the default query: "What is the final approved amount and deadline for Milestone 1?".
+4. View the synthesized answer explaining the baseline $50,000 agreement, the $72,500 approved addendum, and the unapproved $85,000 invoice.
+5. Click "Findings" to inspect 1 discrepancy: "Milestone 1 Payment Amount" (Medium severity, $72,500 vs $85,000), 85-90% confidence with Moderate uncertainty, and 3 verifiable page citations.
 
-### 2. 🛡️ High-Availability Self-Healing Architecture
-Built to survive high-concurrency hackathon judging without crashes:
-* **10-Key Rotation Pool:** Distributes requests across a verified pool of 10 API keys. If any key hits a rate limit (`429`), the pool rotates within milliseconds.
-* **5-Tier Model Cascade:** If Google returns a temporary high-demand spike (`503`), the engine cascades automatically through 5 distinct Gemini models without user disruption.
-* **Sub-Second Backoff:** Absorbs instantaneous network jitter seamlessly.
+## Testing and Edge Cases
 
-### 3. 🎨 Claude-Inspired Editorial Interface
-* **Warm Obsidian Palette:** Designed with Claude AI’s signature warm dark aesthetic (`#141413`) and terracotta accents (`#cc785c`).
-* **Artifacts Split-Screen Panel:** When discrepancies are uncovered, an interactive alert card opens the **Investigation Dossier** side-drawer on the right.
-* **Docked Compact Input Bar:** Fixed at the bottom with a subtle gradient fade so messages scroll gracefully underneath it without moving the input box.
-* **Rich Markdown Engine:** Formatted with `react-markdown` and `remark-gfm` to render structured tables, bold tags, and clean bulleted lists.
+| Test Case | Expected Behavior | Actual Result |
+| :--- | :--- | :--- |
+| Demo case (3 contradictory files) | Detect discrepancy between addendum and invoice | 1 discrepancy ($72.5k vs $85k), 3 citations, 85% confidence |
+| Conversational inputs (e.g. "hi", "perfect") | Direct conversational reply without hallucinating document audits | 200 OK, polite assistant response, empty citations/conflicts |
+| Multi-page digital PDF | Page-aware extraction with accurate page numbering | Verified on 5-page official rulebook with page citations |
+| Missing API key configuration | Safe fallback message without application crash | 200 OK, graceful configuration notice and simulated citations |
+| Empty document store query | Clear guidance prompting document upload or demo case | Handled gracefully without unhandled exception |
+| Same-document internal sections | Excluded from conflict detection | Verified, zero false-positive intra-document contradictions |
 
-<p align="center">
-  <img src="./assets/demo-workspace.png" alt="docV.ai Multi-Document Workspace & Ingestion" width="100%" />
-  <br/>
-  <em>Figure 2: Multi-document vault ingestion with dynamic investigative prompts, quick starters, and header controls.</em>
-</p>
+## Known Limitations and Future Improvements
 
-### 4. 📊 Factual Grounding & Uncertainty Meter
-* Displays a real-time **0–100% Grounding Score** based on verifiable citations.
-* Surfaces an explicit **Factors & Caveats** list explaining any uncertainty (e.g., missing sign-offs, conflicting dates, unverified clauses).
+### Limitations
+- Lexical retrieval: BM25 depends on keyword overlap; queries with complex semantic paraphrasing and no shared terms may retrieve suboptimal excerpts.
+- Vision OCR dependence: Scanned document text extraction requires external model vision API availability.
+- In-memory index: Document storage and the BM25 index reside in memory and local file cache, resetting when the server instance restarts.
+- Single-turn queries: Context is evaluated per investigation query rather than multi-turn conversational history.
+- Grounding estimation: Confidence scores are estimated via model reasoning evaluation rather than formal mathematical proof.
 
-### 5. 📑 1-Click Forensic Dossier Exporter
-* Generates a formal, printable Markdown audit report (`.md`) containing executive findings, the contradiction matrix, and page citations with one click.
+### Future Work
+- Dense vector embeddings alongside BM25 for hybrid semantic and keyword retrieval.
+- Persistent database storage (PostgreSQL/pgvector) for document archives across server restarts.
+- Automated table parsing and structured financial spreadsheet comparison.
+- Batch export of multi-document audit reports in PDF format.
 
----
-
-## 📂 Project Structure
-
-```
-D:\algo hackathon\
-├── backend/
-│   ├── .venv/                   # Python virtual environment
-│   ├── .env                     # Multi-key pool (10 API keys configured)
-│   ├── .env.example             # Template for API keys & server port
-│   ├── requirements.txt         # FastAPI, pypdf, pdfplumber, google-genai, rank-bm25
-│   ├── main.py                  # REST API endpoints (/upload, /query, /sample-data, /reset)
-│   ├── gemini_pool.py           # 10-key rotation manager & 5-tier model cascade engine
-│   ├── ingest.py                # Multi-format parser (PDF, Vision OCR, Plain Text)
-│   ├── indexer.py               # BM25 lexical chunker & hybrid search
-│   ├── investigator.py          # Grounded synthesis, conflict detection & uncertainty scoring
-│   └── uploads/                 # Local ingestion storage (.gitkeep tracked)
-├── frontend/
-│   ├── src/app/
-│   │   ├── globals.css          # Claude-inspired warm obsidian theme & scrollbars
-│   │   ├── layout.tsx           # Typography & docV.ai metadata
-│   │   └── page.tsx             # Main Command Center, Chat stream & Artifacts drawer
-│   ├── package.json             # Next.js 15, Tailwind CSS, Lucide Icons, ReactMarkdown
-│   ├── next.config.ts           # Next.js configuration
-│   └── tsconfig.json            # TypeScript configuration
-├── .gitignore                   # Strict security filter (excludes .env, .venv, node_modules)
-├── README.md                    # Official hackathon documentation & architecture
-└── run_dev.bat                  # 1-click double-click launcher for both servers
-```
-
----
-
-## 🚀 Quick Start Guide
+## Setup
 
 ### Prerequisites
-* **Node.js:** v18+ (tested on Node v24)
-* **Python:** 3.10+ (tested on Python 3.11)
-* **Google Gemini API Key:** From [Google AI Studio](https://aistudio.google.com/)
+- Node.js 18+
+- Python 3.10+
+- Google Gemini API key
 
----
-
-### Option 1: 1-Click Launch (Windows)
-
-Simply double-click the included batch launcher:
-```cmd
+### Quick Start
+Windows batch launcher:
+```bat
 run_dev.bat
 ```
-This automatically boots:
-* **Backend API:** [http://localhost:8000](http://localhost:8000) (Swagger docs at `/docs`)
-* **Frontend UI:** [http://localhost:3000](http://localhost:3000)
 
----
-
-### Option 2: Manual Setup
-
-#### 1. Backend Setup
+Manual setup:
 ```bash
+# Backend
 cd backend
-
-# Create & activate virtual environment
 python -m venv .venv
-# Windows:
-.\.venv\Scripts\activate
-# Mac/Linux:
-source .venv/bin/activate
-
-# Install dependencies
+.venv\Scripts\activate
 pip install -r requirements.txt
-
-# Configure your API keys in backend/.env
-# GEMINI_API_KEYS=key1,key2,key3...
-
-# Start FastAPI server
 uvicorn main:app --reload --port 8000
-```
 
-#### 2. Frontend Setup
-```bash
+# Frontend (in another terminal)
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start Next.js development server
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
 
----
+### Environment Variables
+Configure in `backend/.env`:
+- `GEMINI_API_KEY`: Primary API key.
+- `GEMINI_API_KEYS`: Optional comma-separated keys for key rotation.
 
-## 🧪 Live Evaluation Walkthrough (For Hackathon Judges)
+## Disclosures
 
-To verify the complete capabilities of `docV.ai` in under 60 seconds:
+- External APIs and models used: Google Gemini API (gemini-2.5-flash, gemini-3.8-flash, gemini-flash-latest, gemini-3.1-flash-lite, gemini-2.5-flash-lite).
+- Third-party libraries: FastAPI, Uvicorn, Pydantic, pypdf, pdfplumber, rank-bm25, Pillow, Next.js, React, Tailwind CSS, Lucide React, react-markdown, remark-gfm, @vercel/analytics.
+- Datasets: Demo case documents (Master Service Agreement, Email Addendum, Vendor Invoice) are synthetic test records created for this project.
+- AI-assisted tools: Antigravity CLI and Gemini models were used for code generation, refactoring, and debugging.
+- Equivalent technologies: Gemini Multimodal Vision API was used for image text extraction alongside pypdf for digital document processing as allowed by the problem statement guidelines.
 
-1. Open [http://localhost:3000](http://localhost:3000). Ensure the status indicator shows **"Online"**.
-2. Click **"Load Demo Case"** in the top navigation bar.
-   * This immediately ingests an authentic enterprise dispute scenario:
-     * `Master_Service_Agreement_v1.txt` (The base contract)
-     * `Email_Addendum_Scope_March.txt` (The mid-project scope & price amendment)
-     * `Vendor_Invoice_INV-089.txt` (The final billed invoice)
-3. The system automatically executes the forensic prompt:
-   > *"What is the final approved amount and deadline for Milestone 1?"*
-4. **Observe the Results:**
-   * **Synthesized Findings:** Structured markdown table breaking down original scope vs. expanded scope vs. invoiced amount.
-   * **Artifacts Banner:** Alerts that **3 Cross-Document Discrepancies** were detected.
-   * **Open the Dossier Panel:** Click to see side-by-side claim boxes:
-     * $50,000 (MSA) vs. $72,500 (Addendum) vs. $85,000 (Invoice).
-     * Auditor's resolution identifying that the invoice exceeded the agreed addendum cap.
-   * **Grounding Score:** 95% verified with exact verbatim quotes and page numbers.
-5. Click **"Download Dossier (.md)"** in the top right of the Dossier panel to export the full report.
+## Project Structure
 
----
+```
+docV-ai/
+├── backend/
+│   ├── main.py              # FastAPI endpoints and demo dataset
+│   ├── ingest.py            # PDF, image vision, and text ingestion
+│   ├── indexer.py           # Page chunking and BM25 search
+│   ├── investigator.py      # Q&A synthesis, conflict detection, uncertainty scoring
+│   ├── gemini_pool.py       # Key rotation and model fallback manager
+│   └── requirements.txt     # Python dependencies
+├── frontend/
+│   ├── src/app/
+│   │   ├── layout.tsx       # Root layout and metadata
+│   │   └── page.tsx         # Three-pane investigation interface
+│   └── package.json         # Frontend dependencies (Next.js 16.3.8)
+├── assets/                  # Documentation images and icons
+├── run_dev.bat              # Local development launcher
+├── README.md
+└── LICENSE                  # MIT License
+```
 
-## ⚖️ Official Disclosures & Compliance
+## License
 
-* **Problem Statement ID:** `ALG-AI-02` (Intelligent Document Investigator).
-* **AI Model Usage:** Google Gemini API (`gemini-2.5-flash`, `gemini-3.8-flash`) via official `google-genai` SDK.
-* **Third-Party Libraries:** FastAPI, Next.js, Tailwind CSS, Lucide React, PyPDF, PDFPlumber, Rank-BM25, ReactMarkdown, RemarkGFM.
-* **Originality & Fair Play:** Solution built during ALGOTHON '26 in compliance with Official Rule Book Sections 4, 5, and 8.
+MIT License.
