@@ -196,7 +196,7 @@ function highlightQuoteValues(quote: string, relevantValues: string[]) {
 }
 
 export default function Home() {
-  const [apiUrl] = useState("http://localhost:8000");
+  const [apiUrl] = useState(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
   const [backendOnline, setBackendOnline] = useState(false);
   const [documents, setDocuments] = useState<IngestedDoc[]>([]);
   const [inputQuery, setInputQuery] = useState("");

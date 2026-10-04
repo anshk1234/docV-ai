@@ -113,8 +113,10 @@ async def run_investigation(req: QueryRequest):
 def reset_workspace():
     DOCUMENTS.clear()
     INDEX.clear()
-    # Clean up uploads directory
+    # Clean up uploads directory (preserving .gitkeep)
     for item in os.listdir(UPLOAD_DIR):
+        if item == ".gitkeep":
+            continue
         item_path = os.path.join(UPLOAD_DIR, item)
         if os.path.isfile(item_path):
             os.remove(item_path)
