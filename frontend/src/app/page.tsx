@@ -27,7 +27,10 @@ import {
   FileSpreadsheet,
   FileCode,
   Trash2,
-  Maximize2
+  Maximize2,
+  Info,
+  X,
+  Award
 } from "lucide-react";
 
 interface IngestedDoc {
@@ -219,6 +222,20 @@ export default function Home() {
   const [activeResult, setActiveResult] = useState<InvestigationResult | null>(null);
   const [artifactTab, setArtifactTab] = useState<"conflicts" | "sources" | "uncertainty">("conflicts");
   const [error, setError] = useState<string | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  // Close info modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setInfoOpen(false);
+      }
+    };
+    if (infoOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [infoOpen]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -584,6 +601,15 @@ ${activeResult.citations
           </div>
 
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setInfoOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-[var(--surface-raised)] border border-[var(--border)] hover:bg-[#20201d] hover:border-[var(--border-subtle)] text-[var(--text)] transition cursor-pointer"
+              title="ALGOTHON'26 Problem Statement & Project Info"
+            >
+              <Info className="w-3.5 h-3.5 text-[var(--accent)]" />
+              <span>Info</span>
+            </button>
+
             <button
               onClick={handleLoadSample}
               disabled={loading}
@@ -1186,6 +1212,174 @@ ${activeResult.citations
             )}
           </div>
         </aside>
+      )}
+
+      {/* 4. Info Modal Overlay for ALGOTHON'26 Problem Statement */}
+      {infoOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-sm transition-opacity"
+          onClick={() => setInfoOpen(false)}
+        >
+          <div
+            className="max-w-2xl w-full max-h-[88vh] flex flex-col rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--surface-raised)]/70">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-[var(--accent)]/15 text-[var(--accent)]">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)] bg-[var(--accent)]/10 px-2 py-0.5 rounded-full border border-[var(--accent)]/20">
+                      ALGOTHON'26 • AI / ML
+                    </span>
+                    <span className="text-xs font-mono text-[var(--text-muted)]">PSID: ALG-AI-02</span>
+                  </div>
+                  <h2 className="text-base sm:text-lg font-semibold text-[var(--text)] mt-0.5">
+                    Intelligent Document Investigator
+                  </h2>
+                </div>
+              </div>
+              <button
+                onClick={() => setInfoOpen(false)}
+                className="text-[var(--text-muted)] hover:text-[var(--text)] p-1.5 rounded-lg hover:bg-[var(--surface-raised)] transition cursor-pointer"
+                title="Close (Esc)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-sm">
+              {/* Problem Statement Excerpt */}
+              <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <FileText className="w-3.5 h-3.5 text-[var(--accent)]" />
+                  <span>Official Problem Statement</span>
+                </div>
+                <p className="text-[14px] italic text-[var(--text)] leading-relaxed">
+                  "Information is often scattered across PDFs, images and text documents. Users need answers without manually reading every document. Build a document investigation platform that accepts multiple documents and answers natural-language questions with supporting sources."
+                </p>
+              </div>
+
+              {/* Innovation / Bonus Challenge */}
+              <div className="p-4 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Innovation & Bonus Challenge (Judging Focus)</span>
+                </div>
+                <p className="text-[13.5px] text-[var(--text)] font-medium leading-relaxed">
+                  "Identify conflicting documents and communicate uncertainty instead of confidently returning one unsupported answer."
+                </p>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  docV.ai implements a dedicated cross-document contradiction matrix that detects contradictory claims across distinct files and communicates uncertainty transparently.
+                </p>
+              </div>
+
+              {/* Problem Requirements & Solution Checklist */}
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  Participant Requirements & Compliance
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="p-3 rounded-lg bg-[var(--surface-raised)]/60 border border-[var(--border-subtle)] space-y-1">
+                    <div className="flex items-center gap-2 font-medium text-[var(--text)] text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Multiple Document Formats</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] pl-6">
+                      Ingests multi-page PDFs, OCR scanned images, markdown, and text files.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[var(--surface-raised)]/60 border border-[var(--border-subtle)] space-y-1">
+                    <div className="flex items-center gap-2 font-medium text-[var(--text)] text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Extraction & Indexing</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] pl-6">
+                      Hybrid BM25 keyword + semantic chunking for sub-second context retrieval.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[var(--surface-raised)]/60 border border-[var(--border-subtle)] space-y-1">
+                    <div className="flex items-center gap-2 font-medium text-[var(--text)] text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Natural-Language Q&A</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] pl-6">
+                      Strictly grounded answers with zero hallucinations and conversational small-talk handling.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-[var(--surface-raised)]/60 border border-[var(--border-subtle)] space-y-1">
+                    <div className="flex items-center gap-2 font-medium text-[var(--text)] text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Conflict & Uncertainty Matrix</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] pl-6">
+                      Pinpoints cross-document discrepancies and calculates confidence scores (0-100%).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Architecture & Tech Stack */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  Architecture & Tech Stack
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    "Next.js 16 (App Router)",
+                    "React 19",
+                    "FastAPI (Python 3.11)",
+                    "Gemini 2.5 Flash",
+                    "PyMuPDF",
+                    "Tesseract OCR",
+                    "Tailwind CSS",
+                    "Vercel Analytics"
+                  ].map((tech) => (
+                    <span
+                      key={tech}
+                      className="px-2.5 py-1 rounded-md text-xs bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-[var(--text)]"
+                    >
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 border-t border-[var(--border)] bg-[var(--surface-raised)]/70 flex items-center justify-between text-xs">
+              <div className="text-[var(--text-muted)]">
+                Built for <strong className="text-[var(--text)]">ALGOTHON'26</strong> by <strong className="text-[var(--text)]">anshk1234</strong>
+              </div>
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://github.com/anshk1234/docV-ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[var(--accent)] hover:underline font-medium"
+                >
+                  <span>GitHub</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button
+                  onClick={() => setInfoOpen(false)}
+                  className="px-3.5 py-1.5 rounded-md bg-[var(--surface-raised)] border border-[var(--border)] hover:bg-[#20201d] text-[var(--text)] transition cursor-pointer font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
