@@ -16,6 +16,12 @@
 [![Python](https://img.shields.io/badge/Language-Python%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
+<br/><br/>
+
+[![docV.ai Cross-Document Contradiction Detection](./assets/demo-investigation.png)](https://docv-ai.vercel.app)
+
+*Figure 1: docV.ai Forensic Command Center — Live Cross-Document Contradiction Analysis and Side-by-Side Findings Dossier.*
+
 </div>
 
 ---
@@ -126,6 +132,12 @@ Built to survive high-concurrency hackathon judging without crashes:
 * **Artifacts Split-Screen Panel:** When discrepancies are uncovered, an interactive alert card opens the **Investigation Dossier** side-drawer on the right.
 * **Docked Compact Input Bar:** Fixed at the bottom with a subtle gradient fade so messages scroll gracefully underneath it without moving the input box.
 * **Rich Markdown Engine:** Formatted with `react-markdown` and `remark-gfm` to render structured tables, bold tags, and clean bulleted lists.
+
+<p align="center">
+  <img src="./assets/demo-workspace.png" alt="docV.ai Multi-Document Workspace & Ingestion" width="100%" />
+  <br/>
+  <em>Figure 2: Multi-document vault ingestion with dynamic investigative prompts, quick starters, and header controls.</em>
+</p>
 
 ### 4. 📊 Factual Grounding & Uncertainty Meter
 * Displays a real-time **0–100% Grounding Score** based on verifiable citations.
