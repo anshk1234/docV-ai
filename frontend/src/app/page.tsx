@@ -246,16 +246,11 @@ export default function Home() {
     }, 120);
   };
 
-  // Health check & fetch documents
+  // Health check (heartbeat only, does not clobber document state)
   const checkHealth = async () => {
     try {
       const res = await fetch(`${apiUrl}/api/health`);
-      if (res.ok) {
-        setBackendOnline(true);
-        fetchDocuments();
-      } else {
-        setBackendOnline(false);
-      }
+      setBackendOnline(res.ok);
     } catch {
       setBackendOnline(false);
     }
@@ -266,7 +261,12 @@ export default function Home() {
       const res = await fetch(`${apiUrl}/api/documents`);
       if (res.ok) {
         const data = await res.json();
-        setDocuments(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setDocuments(data);
+          try {
+            localStorage.setItem("docv_docs", JSON.stringify(data));
+          } catch (e) {}
+        }
       }
     } catch (err) {
       console.error(err);
@@ -274,8 +274,20 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // Restore cached documents on mount to guarantee UI persistence across queries
+    try {
+      const saved = localStorage.getItem("docv_docs");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setDocuments(parsed);
+        }
+      }
+    } catch (e) {}
+
     checkHealth();
-    const interval = setInterval(checkHealth, 6000);
+    fetchDocuments();
+    const interval = setInterval(checkHealth, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -335,6 +347,9 @@ export default function Home() {
     try {
       await fetch(`${apiUrl}/api/reset`, { method: "POST" });
       setDocuments([]);
+      try {
+        localStorage.removeItem("docv_docs");
+      } catch (e) {}
       setMessages([]);
       setActiveResult(null);
       setArtifactOpen(false);
