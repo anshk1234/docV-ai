@@ -202,6 +202,22 @@ function highlightQuoteValues(quote: string, relevantValues: string[]) {
   );
 }
 
+function getClientSessionId(): string {
+  if (typeof window === "undefined") return "default_session";
+  try {
+    let sid = localStorage.getItem("docv_session_id");
+    if (!sid) {
+      sid = (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function")
+        ? crypto.randomUUID()
+        : `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      localStorage.setItem("docv_session_id", sid);
+    }
+    return sid;
+  } catch {
+    return "default_session";
+  }
+}
+
 export default function Home() {
   const [apiUrl] = useState(() => {
     if (process.env.NEXT_PUBLIC_API_URL) {
@@ -212,6 +228,7 @@ export default function Home() {
     }
     return "";
   });
+  const [sessionId, setSessionId] = useState<string>("");
   const [backendOnline, setBackendOnline] = useState(false);
   const [documents, setDocuments] = useState<IngestedDoc[]>([]);
   const [inputQuery, setInputQuery] = useState("");
@@ -268,18 +285,24 @@ export default function Home() {
   };
 
   // Health check (heartbeat only, does not clobber document state)
-  const checkHealth = async () => {
+  const checkHealth = async (overrideSid?: string) => {
+    const sid = overrideSid || sessionId || getClientSessionId();
     try {
-      const res = await fetch(`${apiUrl}/api/health`);
+      const res = await fetch(`${apiUrl}/api/health`, {
+        headers: { "X-Session-ID": sid },
+      });
       setBackendOnline(res.ok);
     } catch {
       setBackendOnline(false);
     }
   };
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = async (overrideSid?: string) => {
+    const sid = overrideSid || sessionId || getClientSessionId();
     try {
-      const res = await fetch(`${apiUrl}/api/documents`);
+      const res = await fetch(`${apiUrl}/api/documents`, {
+        headers: { "X-Session-ID": sid },
+      });
       if (res.ok) {
         const data = await res.json();
         setDocuments(Array.isArray(data) ? data : []);
@@ -290,14 +313,17 @@ export default function Home() {
   };
 
   useEffect(() => {
+    const sid = getClientSessionId();
+    setSessionId(sid);
+
     // Clear any stale cached documents
     try {
       localStorage.removeItem("docv_docs");
     } catch (e) {}
 
-    checkHealth();
-    fetchDocuments();
-    const interval = setInterval(checkHealth, 10000);
+    checkHealth(sid);
+    fetchDocuments(sid);
+    const interval = setInterval(() => checkHealth(sid), 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -311,6 +337,7 @@ export default function Home() {
     setUploading(true);
     setError(null);
 
+    const sid = sessionId || getClientSessionId();
     const formData = new FormData();
     for (let i = 0; i < e.target.files.length; i++) {
       formData.append("files", e.target.files[i]);
@@ -319,6 +346,7 @@ export default function Home() {
     try {
       const res = await fetch(`${apiUrl}/api/upload`, {
         method: "POST",
+        headers: { "X-Session-ID": sid },
         body: formData,
       });
 
@@ -327,7 +355,7 @@ export default function Home() {
         throw new Error(errData.detail || "Failed to upload files");
       }
 
-      await fetchDocuments();
+      await fetchDocuments(sid);
     } catch (err: any) {
       setError(err.message || "Upload failed");
     } finally {
@@ -340,10 +368,14 @@ export default function Home() {
   const handleLoadSample = async () => {
     setLoading(true);
     setError(null);
+    const sid = sessionId || getClientSessionId();
     try {
-      const res = await fetch(`${apiUrl}/api/sample-data`, { method: "POST" });
+      const res = await fetch(`${apiUrl}/api/sample-data`, {
+        method: "POST",
+        headers: { "X-Session-ID": sid },
+      });
       const data = await res.json();
-      await fetchDocuments();
+      await fetchDocuments(sid);
       const defaultQuery = data.suggested_query || "What is the final approved amount and deadline for Milestone 1?";
       executeInvestigation(defaultQuery);
     } catch (err: any) {
@@ -354,8 +386,12 @@ export default function Home() {
 
   // Reset workspace
   const handleReset = async () => {
+    const sid = sessionId || getClientSessionId();
     try {
-      await fetch(`${apiUrl}/api/reset`, { method: "POST" });
+      await fetch(`${apiUrl}/api/reset`, {
+        method: "POST",
+        headers: { "X-Session-ID": sid },
+      });
       setDocuments([]);
       try {
         localStorage.removeItem("docv_docs");
@@ -393,11 +429,15 @@ export default function Home() {
     setLoading(true);
     setError(null);
 
+    const sid = sessionId || getClientSessionId();
     try {
       const res = await fetch(`${apiUrl}/api/query`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-ID": sid,
+        },
+        body: JSON.stringify({ query: q, session_id: sid }),
       });
 
       if (!res.ok) {
