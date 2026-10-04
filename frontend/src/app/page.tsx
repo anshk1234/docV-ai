@@ -70,6 +70,129 @@ interface Message {
   timestamp: string;
 }
 
+function extractConflictSummary(item: ConflictItem): string {
+  const amountPattern = /\$[\d,]+(?:\.\d+)?/g;
+  const amountsA = item.claim_a.match(amountPattern) || [];
+  const amountsB = item.claim_b.match(amountPattern) || [];
+  
+  if (amountsA.length > 0 && amountsB.length > 0) {
+    const valA = amountsA.length > 1 && /to\s+\$[\d,]+/i.test(item.claim_a) 
+      ? amountsA[amountsA.length - 1] 
+      : amountsA[0];
+    const valB = amountsB.length > 1 && /to\s+\$[\d,]+/i.test(item.claim_b) 
+      ? amountsB[amountsB.length - 1] 
+      : amountsB[0];
+
+    if (valA && valB && valA !== valB) {
+      const isInvoiceB = /invoice|bill|inv-/i.test(item.document_b) || /invoice|bill|billed/i.test(item.claim_b);
+      const isInvoiceA = /invoice|bill|inv-/i.test(item.document_a) || /invoice|bill|billed/i.test(item.claim_a);
+      if (isInvoiceB) {
+        return `Invoice bills ${valB} vs ${valA} approved`;
+      }
+      if (isInvoiceA) {
+        return `Invoice bills ${valA} vs ${valB} approved`;
+      }
+      return `Amount changed ${amountsA[0]} -> ${amountsB[amountsB.length - 1]}`;
+    }
+  }
+
+  const dateRegex = /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?/gi;
+  const datesA = item.claim_a.match(dateRegex) || [];
+  const datesB = item.claim_b.match(dateRegex) || [];
+  const dateA = datesA[0];
+  const dateB = datesB[0];
+  if (dateA && dateB && dateA.toLowerCase() !== dateB.toLowerCase()) {
+    const shortenDate = (d: string) => {
+      return d.replace(/January/i, "Jan")
+        .replace(/February/i, "Feb")
+        .replace(/March/i, "Mar")
+        .replace(/April/i, "Apr")
+        .replace(/June/i, "Jun")
+        .replace(/July/i, "Jul")
+        .replace(/August/i, "Aug")
+        .replace(/September/i, "Sep")
+        .replace(/October/i, "Oct")
+        .replace(/November/i, "Nov")
+        .replace(/December/i, "Dec")
+        .replace(/,\s*\d{4}/, "");
+    };
+    return `deadline moved ${shortenDate(dateA)} -> ${shortenDate(dateB)}`;
+  }
+
+  if (item.topic) {
+    return item.topic;
+  }
+  return `${item.document_a} vs ${item.document_b}`;
+}
+
+function generateBannerSubtitle(conflicts: ConflictItem[]): string {
+  if (!conflicts || conflicts.length === 0) return "";
+  const summaries = conflicts.map(extractConflictSummary);
+  if (summaries.length === 1) {
+    return summaries[0];
+  }
+  const top2 = summaries.slice(0, 2);
+  let text = top2.join(" and ");
+  if (summaries.length > 2) {
+    text += `, +${summaries.length - 2} more`;
+  }
+  return text;
+}
+
+function cleanSectionHeadings(markdown: string): string {
+  const hasMultiple = /#{1,4}\s+2\.\s+/m.test(markdown);
+  if (!hasMultiple) {
+    return markdown.replace(/^(#{1,4}\s+)1\.\s+/gm, "$1");
+  }
+  return markdown;
+}
+
+function getConflictValues(item: ConflictItem): string[] {
+  const combined = `${item.claim_a} ${item.claim_b} ${item.topic}`;
+  const amounts = combined.match(/\$[\d,]+(?:\.\d+)?/g) || [];
+  const dates = combined.match(/(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?/gi) || [];
+  return Array.from(new Set([...amounts, ...dates]));
+}
+
+function getAllConflictValues(conflicts: ConflictItem[]): string[] {
+  const all: string[] = [];
+  for (const c of conflicts) {
+    all.push(...getConflictValues(c));
+  }
+  return Array.from(new Set(all));
+}
+
+function highlightQuoteValues(quote: string, relevantValues: string[]) {
+  if (!quote || !relevantValues || relevantValues.length === 0) return quote;
+  
+  const uniqueVals = Array.from(new Set(relevantValues.filter(v => v && v.trim().length >= 2)));
+  if (uniqueVals.length === 0) return quote;
+
+  uniqueVals.sort((a, b) => b.length - a.length);
+  const pattern = uniqueVals.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const regex = new RegExp(`(${pattern})`, 'gi');
+
+  const parts = quote.split(regex);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const isMatch = uniqueVals.some(v => v.toLowerCase() === part.toLowerCase());
+        if (isMatch) {
+          return (
+            <mark
+              key={i}
+              className="bg-[var(--accent)]/20 text-[var(--text)] font-bold px-1 py-0.2 rounded border border-[var(--accent)]/30 not-italic"
+            >
+              {part}
+            </mark>
+          );
+        }
+        return part;
+      })}
+    </>
+  );
+}
+
 export default function Home() {
   const [apiUrl] = useState("http://localhost:8000");
   const [backendOnline, setBackendOnline] = useState(false);
@@ -86,6 +209,18 @@ export default function Home() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleInspectConflict = (result: InvestigationResult, targetIndex: number = 0) => {
+    setActiveResult(result);
+    setArtifactTab("conflicts");
+    setArtifactOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById(`conflict-item-${targetIndex}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 120);
+  };
 
   // Health check & fetch documents
   const checkHealth = async () => {
@@ -554,7 +689,7 @@ ${activeResult.citations
                                 )
                               }}
                             >
-                              {msg.text}
+                              {cleanSectionHeadings(msg.text)}
                             </ReactMarkdown>
                           </div>
 
@@ -562,13 +697,10 @@ ${activeResult.citations
                           {msg.result && msg.result.conflicts_detected.length > 0 && (() => {
                             const count = msg.result.conflicts_detected.length;
                             const countLabel = `${count} ${count === 1 ? "discrepancy" : "discrepancies"} found`;
+                            const subtitle = generateBannerSubtitle(msg.result.conflicts_detected);
                             return (
                               <div
-                                onClick={() => {
-                                  setActiveResult(msg.result || null);
-                                  setArtifactOpen(true);
-                                  setArtifactTab("conflicts");
-                                }}
+                                onClick={() => handleInspectConflict(msg.result!)}
                                 className="rounded-lg border border-[var(--accent)]/40 bg-[var(--surface-raised)] hover:border-[var(--accent)] p-3 flex items-center justify-between cursor-pointer transition"
                               >
                                 <div className="flex items-center gap-3">
@@ -580,7 +712,7 @@ ${activeResult.citations
                                       {countLabel}
                                     </p>
                                     <p className="text-xs text-[var(--text-muted)]">
-                                      Conflicting payment terms or delivery dates detected across files.
+                                      {subtitle}
                                     </p>
                                   </div>
                                 </div>
@@ -718,7 +850,6 @@ ${activeResult.citations
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-[var(--text)]">Findings</h3>
-                <p className="text-xs text-[var(--text-muted)]">Evidence</p>
               </div>
             </div>
 
@@ -741,41 +872,41 @@ ${activeResult.citations
           </div>
 
           {/* Findings Tabs */}
-          <div className="flex border-b border-[var(--border-subtle)] bg-[var(--surface)] px-3 pt-2 gap-1 text-xs">
+          <div className="flex border-b border-[var(--border-subtle)] bg-[var(--surface)] px-3 pt-2 gap-1 text-xs overflow-x-auto">
             <button
               onClick={() => setArtifactTab("conflicts")}
-              className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 ${
+              className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
                 artifactTab === "conflicts"
                   ? "border-[var(--accent)] text-[var(--accent)]"
                   : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}
             >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Discrepancies ({activeResult.conflicts_detected.length})</span>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="whitespace-nowrap">Conflicts ({activeResult.conflicts_detected.length})</span>
             </button>
 
             <button
               onClick={() => setArtifactTab("uncertainty")}
-              className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 ${
+              className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
                 artifactTab === "uncertainty"
                   ? "border-[var(--accent)] text-[var(--accent)]"
                   : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}
             >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Grounding ({activeResult.confidence_score}%)</span>
+              <HelpCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="whitespace-nowrap">Grounding ({activeResult.confidence_score}%)</span>
             </button>
 
             <button
               onClick={() => setArtifactTab("sources")}
-              className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 ${
+              className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
                 artifactTab === "sources"
                   ? "border-[var(--accent)] text-[var(--accent)]"
                   : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Sources ({activeResult.citations.length})</span>
+              <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="whitespace-nowrap">Sources ({activeResult.citations.length})</span>
             </button>
           </div>
 
@@ -790,64 +921,68 @@ ${activeResult.citations
                     No cross-document contradictions detected.
                   </div>
                 ) : (
-                  activeResult.conflicts_detected.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="border-b border-[var(--border)] pb-4 pt-1 space-y-2.5 last:border-b-0"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-xs text-[var(--text)]">{item.topic}</span>
-                        <span
-                          className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
-                            item.severity === "HIGH"
-                              ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger)]/30"
-                              : "bg-amber-500/10 text-amber-300 border border-amber-500/20"
-                          }`}
-                        >
-                          {item.severity}
-                        </span>
-                      </div>
-
-                      {/* Clean claim comparison */}
-                      <div className="space-y-2 text-xs">
-                        <div className="border-l-2 border-[var(--border)] pl-2.5 py-0.5 space-y-0.5">
-                          <span className="text-xs text-[var(--text-muted)] font-medium block truncate">
-                            {item.document_a}
+                  activeResult.conflicts_detected.map((item, idx) => {
+                    const itemValues = getConflictValues(item);
+                    return (
+                      <div
+                        key={idx}
+                        id={`conflict-item-${idx}`}
+                        className="border-b border-[var(--border)] pb-4 pt-1 space-y-2.5 last:border-b-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-xs text-[var(--text)]">{item.topic}</span>
+                          <span
+                            className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
+                              item.severity === "HIGH"
+                                ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger)]/30"
+                                : "bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                            }`}
+                          >
+                            {item.severity}
                           </span>
-                          <p className="text-xs text-[var(--text)] font-mono leading-relaxed">
-                            "{item.claim_a}"
-                          </p>
                         </div>
 
-                        <div className="border-l-2 border-[var(--border)] pl-2.5 py-0.5 space-y-0.5">
-                          <span className="text-xs text-[var(--text-muted)] font-medium block truncate">
-                            {item.document_b}
-                          </span>
-                          <p className="text-xs text-[var(--text)] font-mono leading-relaxed">
-                            "{item.claim_b}"
-                          </p>
+                        {/* Clean claim comparison with highlighted values */}
+                        <div className="space-y-2 text-xs">
+                          <div className="border-l-2 border-[var(--border)] pl-2.5 py-0.5 space-y-0.5">
+                            <span className="text-xs text-[var(--text-muted)] font-medium block truncate">
+                              {item.document_a}
+                            </span>
+                            <p className="text-xs text-[var(--text)] font-mono leading-relaxed">
+                              "{highlightQuoteValues(item.claim_a, itemValues)}"
+                            </p>
+                          </div>
+
+                          <div className="border-l-2 border-[var(--border)] pl-2.5 py-0.5 space-y-0.5">
+                            <span className="text-xs text-[var(--text-muted)] font-medium block truncate">
+                              {item.document_b}
+                            </span>
+                            <p className="text-xs text-[var(--text)] font-mono leading-relaxed">
+                              "{highlightQuoteValues(item.claim_b, itemValues)}"
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Resolution Note with Markdown Rendering */}
+                        <div className="text-xs text-[var(--text-muted)] leading-relaxed pt-1.5 border-t border-[var(--border-subtle)]">
+                          <span className="text-[var(--text)] font-medium mr-1">Resolution:</span>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ node, ...p }) => <span className="inline text-[var(--text-muted)]" {...p} />,
+                              strong: ({ node, ...p }) => <strong className="font-semibold text-[var(--text)]" {...p} />,
+                              em: ({ node, ...p }) => <em className="italic text-[var(--text)]" {...p} />,
+                              code: ({ node, ...p }) => (
+                                <code className="px-1 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text)] font-mono text-[11px]" {...p} />
+                              )
+                            }}
+                          >
+                            {item.resolution_note}
+                          </ReactMarkdown>
                         </div>
                       </div>
-
-                      {/* Resolution Note with Markdown Rendering */}
-                      <div className="text-xs text-[var(--text-muted)] leading-relaxed pt-1.5 border-t border-[var(--border-subtle)]">
-                        <span className="text-[var(--text)] font-medium mr-1">Resolution:</span>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            p: ({ node, ...p }) => <span className="inline text-[var(--text-muted)]" {...p} />,
-                            strong: ({ node, ...p }) => <strong className="font-semibold text-[var(--text)]" {...p} />,
-                            em: ({ node, ...p }) => <em className="italic text-[var(--text)]" {...p} />,
-                            code: ({ node, ...p }) => (
-                              <code className="px-1 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text)] font-mono text-[11px]" {...p} />
-                            )
-                          }}
-                        >
-                          {item.resolution_note}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
@@ -880,7 +1015,17 @@ ${activeResult.citations
                   <ul className="text-xs text-[var(--text-muted)] space-y-1.5 list-disc list-inside">
                     {activeResult.uncertainty_reasons.map((reason, i) => (
                       <li key={i} className="leading-relaxed">
-                        {reason}
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({ node, ...p }) => <span {...p} />,
+                            strong: ({ node, ...p }) => <strong className="font-semibold text-[var(--text)]" {...p} />,
+                            em: ({ node, ...p }) => <em className="italic text-[var(--text)]" {...p} />,
+                            code: ({ node, ...p }) => <code className="px-1 py-0.5 rounded bg-[var(--surface)] font-mono text-[11px]" {...p} />
+                          }}
+                        >
+                          {reason}
+                        </ReactMarkdown>
                       </li>
                     ))}
                   </ul>
@@ -891,22 +1036,25 @@ ${activeResult.citations
             {/* Tab 3: Verbatim Source Excerpts */}
             {artifactTab === "sources" && (
               <div className="space-y-3">
-                {activeResult.citations.map((cite, i) => (
-                  <div
-                    key={i}
-                    className="border-b border-[var(--border)] pb-3 pt-1 space-y-1.5 last:border-b-0 text-xs"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-[var(--text)] truncate">{cite.doc_name}</span>
-                      <span className="text-xs text-[var(--text-muted)]">
-                        Page {cite.page_number}
-                      </span>
+                {(() => {
+                  const allConflictValues = getAllConflictValues(activeResult.conflicts_detected);
+                  return activeResult.citations.map((cite, i) => (
+                    <div
+                      key={i}
+                      className="border-b border-[var(--border)] pb-3 pt-1 space-y-1.5 last:border-b-0 text-xs"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-[var(--text)] truncate">{cite.doc_name}</span>
+                        <span className="text-xs text-[var(--text-muted)]">
+                          Page {cite.page_number}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] font-mono bg-[var(--surface-raised)] p-2.5 rounded border border-[var(--border-subtle)] leading-relaxed">
+                        "{highlightQuoteValues(cite.quote, allConflictValues)}"
+                      </p>
                     </div>
-                    <p className="text-xs text-[var(--text-muted)] font-mono bg-[var(--surface-raised)] p-2.5 rounded border border-[var(--border-subtle)] leading-relaxed">
-                      "{cite.quote}"
-                    </p>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             )}
           </div>
