@@ -148,9 +148,8 @@ def init_sample_case():
         INDEX.add_document_pages(doc.pages)
     save_store()
 
-# Auto-restore on module boot
-if not load_store():
-    init_sample_case()
+# Only restore saved store if it exists (never auto-init demo on boot)
+load_store()
 
 class QueryRequest(BaseModel):
     query: str
@@ -164,9 +163,6 @@ router = APIRouter()
 @router.get("/")
 @router.get("/health")
 def root():
-    if not DOCUMENTS:
-        if not load_store():
-            init_sample_case()
     return {
         "service": "docV.ai Document Investigator API",
         "status": "online",
@@ -177,8 +173,7 @@ def root():
 @router.get("/documents")
 def list_documents():
     if not DOCUMENTS:
-        if not load_store():
-            init_sample_case()
+        load_store()
     return [
         {
             "id": doc.id,
@@ -222,8 +217,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
 @router.post("/query", response_model=QueryResponse)
 async def run_investigation(req: QueryRequest):
     if not DOCUMENTS:
-        if not load_store():
-            init_sample_case()
+        load_store()
 
     if not DOCUMENTS:
         raise HTTPException(

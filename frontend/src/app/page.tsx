@@ -261,12 +261,7 @@ export default function Home() {
       const res = await fetch(`${apiUrl}/api/documents`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setDocuments(data);
-          try {
-            localStorage.setItem("docv_docs", JSON.stringify(data));
-          } catch (e) {}
-        }
+        setDocuments(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error(err);
@@ -274,15 +269,9 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Restore cached documents on mount to guarantee UI persistence across queries
+    // Clear any stale cached documents
     try {
-      const saved = localStorage.getItem("docv_docs");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setDocuments(parsed);
-        }
-      }
+      localStorage.removeItem("docv_docs");
     } catch (e) {}
 
     checkHealth();
