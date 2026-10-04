@@ -7,7 +7,7 @@
 **Intelligent Document Investigator & Cross-Document Contradiction Engine**  
 ALGOTHON 26 Official Problem Statement ID: `ALG-AI-02` (AI / ML Track)
 
-[Live Demo](https://docv-ai.vercel.app)
+[Deployed App](https://docv-ai.vercel.app)
 
 [![Live Demo](https://img.shields.io/badge/Demo-docv--ai.vercel.app-cc785c)](https://docv-ai.vercel.app)
 [![Next.js](https://img.shields.io/badge/Next.js-16.3.8-black)](https://nextjs.org)
