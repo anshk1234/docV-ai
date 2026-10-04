@@ -30,7 +30,8 @@ import {
   Maximize2,
   Info,
   X,
-  Award
+  Award,
+  Star
 } from "lucide-react";
 
 interface IngestedDoc {
@@ -600,7 +601,18 @@ ${activeResult.citations
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <a
+              href="https://github.com/anshk1234/docV-ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-[var(--surface-raised)] border border-[var(--border)] hover:bg-[#20201d] hover:border-[var(--border-subtle)] text-[var(--text)] transition cursor-pointer group"
+              title="Star docV-ai on GitHub"
+            >
+              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20 group-hover:scale-110 transition-transform" />
+              <span>Star<span className="hidden sm:inline"> on GitHub</span></span>
+            </a>
+
             <button
               onClick={() => setInfoOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-[var(--surface-raised)] border border-[var(--border)] hover:bg-[#20201d] hover:border-[var(--border-subtle)] text-[var(--text)] transition cursor-pointer"
