@@ -11,6 +11,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
+  Plus,
   PanelRightClose,
   PanelRightOpen,
   PanelLeftClose,
@@ -209,6 +211,20 @@ export default function Home() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLElement>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isUp = scrollHeight - scrollTop - clientHeight > 100;
+    setShowScrollBottom(isUp);
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const handleInspectConflict = (result: InvestigationResult, targetIndex: number = 0) => {
     setActiveResult(result);
@@ -315,6 +331,9 @@ export default function Home() {
       setActiveResult(null);
       setArtifactOpen(false);
       setInputQuery("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
       setError(null);
     } catch (err: any) {
       setError(err.message || "Failed to reset workspace");
@@ -335,6 +354,9 @@ export default function Home() {
 
     setMessages((prev) => [...prev, userMsg]);
     setInputQuery("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
     setLoading(true);
     setError(null);
 
@@ -520,9 +542,9 @@ ${activeResult.citations
       </aside>
 
       {/* 2. Main Stage: Conversation & Query View */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--bg)]">
+      <div className="flex-1 relative flex flex-col h-full overflow-hidden bg-[var(--bg)]">
         {/* Top Navbar */}
-        <header className="h-13 border-b border-[var(--border-subtle)] px-5 flex items-center justify-between bg-[var(--bg)]/90 backdrop-blur-sm z-10">
+        <header className="absolute top-0 inset-x-0 h-13 px-5 flex items-center justify-between bg-[var(--bg)]/80 backdrop-blur-md z-20">
           <div className="flex items-center gap-3">
             {!sidebarOpen && (
               <button
@@ -562,8 +584,20 @@ ${activeResult.citations
           </div>
         </header>
 
+        {/* Top Edge Fade Gradient under header */}
+        <div
+          className="absolute top-[52px] inset-x-0 h-10 pointer-events-none z-10"
+          style={{
+            background: "linear-gradient(to bottom, var(--bg) 0%, transparent 100%)"
+          }}
+        />
+
         {/* Conversation Message Stream */}
-        <main className="flex-1 overflow-y-auto px-6 py-6 flex flex-col items-center">
+        <main
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="h-full w-full overflow-y-auto px-6 pt-[72px] pb-48 flex flex-col items-center"
+        >
           <div className="w-full max-w-3xl flex-1 flex flex-col justify-between">
             {/* If No Messages: Clean Greeting */}
             {messages.length === 0 ? (
@@ -783,34 +817,95 @@ ${activeResult.citations
           </div>
         </main>
 
-        {/* Fixed Input Bar */}
-        <div className="flex-shrink-0 w-full px-5 pb-3 pt-2 bg-[var(--bg)] border-t border-[var(--border-subtle)] flex flex-col items-center z-10">
-          <div className="w-full max-w-3xl">
-            <div className="bg-[var(--surface-raised)] border border-[var(--border)] focus-within:border-[var(--accent)] rounded-lg px-3 py-2 transition">
-              {/* Active Document Indicator */}
+        {/* Bottom Fade Gradient directly above and behind input bar */}
+        <div
+          className="absolute bottom-0 inset-x-0 pointer-events-none z-10"
+          style={{
+            height: "160px",
+            background: "linear-gradient(to top, var(--bg) 0%, var(--bg) 40%, transparent 100%)"
+          }}
+        />
+
+        {/* Floating Input Area & Scroll-to-Bottom */}
+        <div className="absolute bottom-0 inset-x-0 z-20 flex flex-col items-center pointer-events-none pb-3 px-4">
+          <div className="w-full max-w-3xl flex flex-col items-center">
+            {/* Scroll-to-Bottom Button */}
+            <div
+              className={`transition-all duration-200 mb-2 ${
+                showScrollBottom
+                  ? "opacity-100 scale-100 pointer-events-auto"
+                  : "opacity-0 scale-95 pointer-events-none"
+              }`}
+            >
+              <button
+                onClick={scrollToBottom}
+                className="w-8 h-8 rounded-full bg-[var(--surface-raised)] hover:bg-[#252522] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center shadow-md shadow-black/30 transition cursor-pointer"
+                title="Scroll to bottom"
+                aria-label="Scroll to bottom"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Floating Input Container */}
+            <div className="w-full bg-[var(--surface-raised)] border border-[var(--border)] focus-within:border-[var(--accent)]/50 rounded-[24px] px-3.5 py-2 shadow-md shadow-black/20 transition-colors pointer-events-auto">
+              {/* Row 1: Subtle Document Chips */}
               {documents.length > 0 && (
-                <div className="flex items-center gap-1.5 pb-1.5 text-sm text-[var(--text-muted)] border-b border-[var(--border-subtle)] mb-1.5">
-                  <Layers className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                  <span>{documents.length} {documents.length === 1 ? "document" : "documents"} loaded:</span>
-                  <div className="flex items-center gap-1 overflow-hidden truncate">
+                <div className="flex items-center gap-1.5 px-1 pt-0.5 pb-1 text-xs text-[var(--text-muted)]">
+                  <Layers className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
+                  <span className="font-normal text-[12px]">{documents.length} {documents.length === 1 ? "document" : "documents"} loaded:</span>
+                  <div className="flex items-center gap-1 overflow-x-auto truncate scrollbar-none">
                     {documents.slice(0, 3).map((d) => (
-                      <span key={d.id} className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-[13px]">
+                      <span
+                        key={d.id}
+                        className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-[11.5px] max-w-[140px]"
+                        title={d.filename}
+                      >
                         {d.filename}
                       </span>
                     ))}
                     {documents.length > 3 && (
-                      <span className="text-xs text-[var(--text-muted)]">+{documents.length - 3}</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">+{documents.length - 3}</span>
                     )}
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
+              {/* Row 2: Plus button, textarea, circular send button */}
+              <div className="flex items-end gap-2 px-1">
+                {/* Plus button for file upload */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-8 h-8 rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] flex items-center justify-center transition flex-shrink-0 cursor-pointer disabled:opacity-50 mb-0.5"
+                  title={uploading ? "Ingesting documents..." : "Add documents"}
+                  aria-label="Add documents"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+
+                {/* Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.txt,.md"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+
+                {/* Auto-growing Textarea */}
                 <textarea
                   ref={textareaRef}
                   rows={1}
                   value={inputQuery}
-                  onChange={(e) => setInputQuery(e.target.value)}
+                  onChange={(e) => {
+                    setInputQuery(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -822,19 +917,30 @@ ${activeResult.citations
                       ? "Load demo case or add documents to start investigating..."
                       : "Ask docV.ai to audit, compare, or uncover conflicts..."
                   }
-                  className="flex-1 bg-transparent border-0 text-[15px] text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none resize-none max-h-24 min-h-[32px] py-1 leading-relaxed"
+                  className="flex-1 bg-transparent border-0 text-[15px] text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none resize-none max-h-36 min-h-[36px] py-1.5 px-1 leading-relaxed"
                 />
 
+                {/* Circular Send Button */}
                 <button
                   onClick={() => executeInvestigation()}
                   disabled={loading || !inputQuery.trim() || documents.length === 0}
-                  className="w-7 h-7 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:bg-[var(--border)] text-white flex items-center justify-center transition cursor-pointer disabled:cursor-not-allowed disabled:text-[var(--text-muted)] flex-shrink-0"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 mb-0.5 ${
+                    !loading && inputQuery.trim() && documents.length > 0
+                      ? "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white cursor-pointer"
+                      : "bg-[var(--surface)] text-[var(--text-muted)]/40 cursor-not-allowed"
+                  }`}
                   title="Send"
+                  aria-label="Send query"
                 >
-                  <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <ArrowUp className="w-4 h-4 stroke-[2.5]" />
                 </button>
               </div>
             </div>
+
+            {/* Helper Text Below Bar */}
+            <p className="text-[12px] text-[var(--text-muted)] text-center pt-2 select-none pointer-events-none">
+              docV.ai can make mistakes. Check important details against the source documents.
+            </p>
           </div>
         </div>
       </div>
