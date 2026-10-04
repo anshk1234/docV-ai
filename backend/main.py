@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from ingest import ingest_file, IngestedDocument, DocumentPage
 from indexer import HybridDocumentIndex
-from investigator import investigate_query, InvestigationResult
+from investigator import investigate_query, InvestigationResult, check_conversational_query
 
 load_dotenv()
 
@@ -216,17 +216,22 @@ async def upload_files(files: List[UploadFile] = File(...)):
 
 @router.post("/query", response_model=QueryResponse)
 async def run_investigation(req: QueryRequest):
+    if not req.query or req.query.strip() == "":
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
     if not DOCUMENTS:
         load_store()
+
+    # Fast conversational check (allows greetings/gratitude even if no documents yet)
+    conv_result = check_conversational_query(req.query, has_documents=bool(DOCUMENTS))
+    if conv_result:
+        return QueryResponse(status="success", result=conv_result)
 
     if not DOCUMENTS:
         raise HTTPException(
             status_code=400,
             detail="No documents have been uploaded yet. Please upload documents first or load sample case files."
         )
-    
-    if not req.query or req.query.strip() == "":
-        raise HTTPException(status_code=400, detail="Query cannot be empty.")
 
     # Retrieve top relevant context chunks across all uploaded documents
     top_chunks = INDEX.search(req.query.strip(), top_k=8)

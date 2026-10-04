@@ -46,7 +46,111 @@ def get_client() -> Optional[genai.Client]:
         return None
     return genai.Client(api_key=api_key)
 
+def check_conversational_query(query: str, has_documents: bool = True) -> Optional[InvestigationResult]:
+    q = query.strip().lower()
+    norm = re.sub(r'[^\w\s]', '', q)
+    norm = re.sub(r'\s+', ' ', norm).strip()
+    if not norm:
+        return None
+
+    gratitude_phrases = {
+        "perfect", "thats perfect", "that is perfect", "it is perfect", "its perfect",
+        "thanks", "thank you", "thank u", "thx", "ty", "thanks a lot", "thank you so much",
+        "many thanks", "thanks docv", "thank you docv", "appreciate it", "much appreciated",
+        "great", "thats great", "that is great", "awesome", "thats awesome", "that is awesome",
+        "nice", "very nice", "nice job", "good job", "well done", "good work", "great work",
+        "cool", "thats cool", "sounds good", "looks good", "wonderful", "amazing", "excellent",
+        "super", "brilliant", "fantastic", "you are great", "you are awesome", "you rock",
+        "perfect thanks", "perfect thank you", "great thanks", "great thank you"
+    }
+
+    greetings_phrases = {
+        "hi", "hello", "hey", "hey there", "hello there", "hiya", "howdy", "yo", "sup", "greetings",
+        "good morning", "good afternoon", "good evening", "hi docv", "hello docv", "hey docv",
+        "hi docvai", "hello docvai", "hey docvai", "hello docv ai", "hi docv ai", "hey docv ai"
+    }
+
+    ack_phrases = {
+        "ok", "okay", "got it", "understood", "sure", "alright", "k", "noted", "fine",
+        "all right", "ok thanks", "okay thanks", "got it thanks", "noted thanks", "sure thanks",
+        "sounds good thanks", "ok thank you", "okay thank you", "alright thanks"
+    }
+
+    farewell_phrases = {
+        "bye", "goodbye", "see you", "cya", "take care", "good night", "have a nice day",
+        "have a good day", "bye docv", "goodbye docv"
+    }
+
+    help_phrases = {
+        "help", "who are you", "what can you do", "what are you", "what is docv", "what is docv ai",
+        "what is docvai", "how do you work", "how does this work"
+    }
+
+    words = norm.split()
+    investigative_keywords = {
+        "contract", "document", "documents", "page", "pages", "price", "amount",
+        "deadline", "date", "milestone", "milestones", "clause", "clauses", "conflict",
+        "conflicts", "discrepancy", "discrepancies", "difference", "differences",
+        "penalty", "penalties", "deliverable", "deliverables", "audit", "table"
+    }
+
+    has_investigative_topic = any(w in investigative_keywords for w in words)
+    if has_investigative_topic:
+        return None
+
+    answer = None
+
+    if norm in gratitude_phrases or (len(words) <= 4 and words[0] in ("thanks", "thank") and "you" in words):
+        if has_documents:
+            answer = "You're very welcome! I'm glad that was helpful. Do you have any other questions about your documents, or another topic you'd like me to investigate?"
+        else:
+            answer = "You're very welcome! Whenever you're ready, upload your documents or click **Load Demo Case** and I'll help you investigate them."
+
+    elif norm in greetings_phrases or (
+        words[0] in ("hi", "hello", "hey") and (
+            "help" in words or "how are you" in norm or len(words) <= 4
+        )
+    ):
+        if has_documents:
+            answer = "Hello! How can I assist you with your document investigation today? Feel free to ask about deliverables, deadlines, prices, or cross-document discrepancies."
+        else:
+            answer = "Hello! I'm **docV.ai**, your intelligent document investigator. Upload contracts, reports, or invoices (or click **Load Demo Case** above) and I'll analyze and cross-reference them for you."
+
+    elif norm in ack_phrases:
+        answer = "Understood! Let me know whenever you'd like to investigate another topic, compare terms, or audit clauses."
+
+    elif norm in farewell_phrases:
+        answer = "Goodbye! Whenever you need deep document verification or contradiction analysis, I'll be here."
+
+    elif norm in help_phrases:
+        answer = (
+            "I am **docV.ai**, an intelligent document investigator and analyst.\n\n"
+            "Here is how I can help:\n"
+            "- **Cross-Document Contradiction Analysis**: Compare multiple documents (contracts, addenda, proposals) and flag conflicting dates, amounts, or clauses.\n"
+            "- **Precision Grounded QA**: Answer specific questions strictly backed by source text.\n"
+            "- **Verifiable Citations**: Provide exact file names, page numbers, and direct quotes.\n\n"
+            "To begin, simply ask an investigative question or upload files!"
+        )
+
+    if answer:
+        return InvestigationResult(
+            query=query,
+            synthesized_answer=answer,
+            confidence_score=100,
+            uncertainty_level="LOW",
+            uncertainty_reasons=[],
+            conflicts_detected=[],
+            citations=[]
+        )
+
+    return None
+
 def investigate_query(query: str, relevant_chunks: List[TextChunk], all_doc_names: List[str]) -> InvestigationResult:
+    # Quick check for conversational greetings / small-talk / gratitude
+    conv_result = check_conversational_query(query, has_documents=bool(all_doc_names))
+    if conv_result:
+        return conv_result
+
     client = get_client()
     
     # Format retrieved document context
@@ -93,13 +197,19 @@ def investigate_query(query: str, relevant_chunks: List[TextChunk], all_doc_name
         "   - Use clean bulleted lists ('- item') for requirements, capabilities, or parameters\n"
         "   - Use Markdown comparison tables ('| Column 1 | Column 2 |') with clear headers whenever describing multiple items, problem statements, or options\n"
         "   - Use horizontal rules ('---') to divide distinct sections cleanly\n"
+        "\nCRITICAL RULES FOR CONVERSATIONAL QUERIES & SMALL TALK:\n"
+        "3. CONVERSATIONAL HANDLING: If the user query is a greeting, polite acknowledgement, gratitude, or conversational remark (such as 'perfect', 'thanks', 'thank you', 'hi', 'hello', 'good job', 'great', 'ok', etc.) rather than a specific factual inquiry about the documents:\n"
+        "   - DO NOT search the document text for the literal word or report that 'the term does not appear in the text'!\n"
+        "   - DO NOT conduct a formal audit on conversational greetings or praise!\n"
+        "   - Respond warmly and conversationally as docV.ai (e.g., acknowledging their gratitude, asking if they have any further questions or specific clauses they want investigated).\n"
+        "   - Return an EMPTY list for conflicts_detected and citations, with confidence_score=100 and uncertainty_level='LOW'.\n"
         "\nCRITICAL RULES FOR CONFLICTS & CONTRADICTIONS:\n"
-        "3. STRICT CROSS-DOCUMENT REQUIREMENT: A conflict exists ONLY when two ENTIRELY DIFFERENT DOCUMENTS (e.g., Document A vs. Document B) make contradictory, incompatible claims about the EXACT SAME entity, price, date, or clause.\n"
-        "4. FORBIDDEN: NEVER compare two different pages, sections, or paragraphs of the SAME document against each other as a conflict!\n"
-        "5. DISTINCT TOPICS ARE NOT CONFLICTS: Comparing two different items (e.g. Milestone 1 vs. Milestone 2, or problem ALG-WEB-01 vs. ALG-WEB-02) is NOT a contradiction because they are separate entities!\n"
-        "6. If no genuine cross-document contradiction exists on the same subject, return an EMPTY list for conflicts_detected.\n"
-        "7. Accurately assign a confidence score (0-100) and list reasons for uncertainty.\n"
-        "8. Provide exact verbatim quotes and page numbers for all citations."
+        "4. STRICT CROSS-DOCUMENT REQUIREMENT: A conflict exists ONLY when two ENTIRELY DIFFERENT DOCUMENTS (e.g., Document A vs. Document B) make contradictory, incompatible claims about the EXACT SAME entity, price, date, or clause.\n"
+        "5. FORBIDDEN: NEVER compare two different pages, sections, or paragraphs of the SAME document against each other as a conflict!\n"
+        "6. DISTINCT TOPICS ARE NOT CONFLICTS: Comparing two different items (e.g. Milestone 1 vs. Milestone 2, or problem ALG-WEB-01 vs. ALG-WEB-02) is NOT a contradiction because they are separate entities!\n"
+        "7. If no genuine cross-document contradiction exists on the same subject, return an EMPTY list for conflicts_detected.\n"
+        "8. Accurately assign a confidence score (0-100) and list reasons for uncertainty.\n"
+        "9. Provide exact verbatim quotes and page numbers for all citations."
     )
 
     user_prompt = f"""
@@ -112,7 +222,7 @@ RELEVANT EXCERPTS WITH SOURCE CITATIONS:
 USER INVESTIGATION QUERY:
 "{query}"
 
-Analyze the excerpts carefully. Detect any conflicts across distinct documents. Return your grounded analysis following the requested schema without adding any 'Forensic Audit:' prefix.
+Analyze the excerpts carefully. Detect any conflicts across distinct documents. Return your grounded analysis following the requested schema without adding any 'Forensic Audit:' prefix. If the query is a conversational greeting, thank-you, or feedback (such as 'perfect' or 'hi'), respond politely and conversationally instead of auditing the literal word.
 """
 
     try:
