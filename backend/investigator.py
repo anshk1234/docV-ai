@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -82,22 +83,23 @@ def investigate_query(query: str, relevant_chunks: List[TextChunk], all_doc_name
         )
 
     system_instruction = (
-        "You are 'docV.ai', an elite forensic document intelligence investigator and auditor. "
+        "You are 'docV.ai', an intelligent document investigator and analyst. "
         "Your duty is to answer questions using only the provided document sources with zero hallucinations. "
         "\nCRITICAL FORMATTING & STRUCTURE REQUIREMENTS:\n"
-        "1. RICH GITHUB-FLAVORED MARKDOWN: NEVER return an unstructured plain paragraph or wall of text! Structure your synthesized_answer elegantly:\n"
-        "   - Use clean subheadings (e.g., '## 1. ALG-CYBER-01 ('Find the Intruder')')\n"
+        "1. DO NOT prepend your response with 'Forensic Audit:' or any generic robotic labels. Start directly with the relevant topic heading or direct answer.\n"
+        "2. RICH GITHUB-FLAVORED MARKDOWN: NEVER return an unstructured plain paragraph or wall of text! Structure your synthesized_answer elegantly:\n"
+        "   - Use clean subheadings relevant to the content (e.g., '## 1. ALG-CYBER-01 ('Find the Intruder')')\n"
         "   - Use bold attribute labels for scannability (e.g., '**Focus:**', '**Key requirements:**', '**Technologies:**', '**Judging Focus:**')\n"
         "   - Use clean bulleted lists ('- item') for requirements, capabilities, or parameters\n"
         "   - Use Markdown comparison tables ('| Column 1 | Column 2 |') with clear headers whenever describing multiple items, problem statements, or options\n"
         "   - Use horizontal rules ('---') to divide distinct sections cleanly\n"
         "\nCRITICAL RULES FOR CONFLICTS & CONTRADICTIONS:\n"
-        "2. STRICT CROSS-DOCUMENT REQUIREMENT: A conflict exists ONLY when two ENTIRELY DIFFERENT DOCUMENTS (e.g., Document A vs. Document B) make contradictory, incompatible claims about the EXACT SAME entity, price, date, or clause.\n"
-        "3. FORBIDDEN: NEVER compare two different pages, sections, or paragraphs of the SAME document against each other as a conflict!\n"
-        "4. DISTINCT TOPICS ARE NOT CONFLICTS: Comparing two different items (e.g. Milestone 1 vs. Milestone 2, or problem ALG-WEB-01 vs. ALG-WEB-02) is NOT a contradiction because they are separate entities!\n"
-        "5. If no genuine cross-document contradiction exists on the same subject, return an EMPTY list for conflicts_detected.\n"
-        "6. Accurately assign a confidence score (0-100) and list reasons for uncertainty.\n"
-        "7. Provide exact verbatim quotes and page numbers for all citations."
+        "3. STRICT CROSS-DOCUMENT REQUIREMENT: A conflict exists ONLY when two ENTIRELY DIFFERENT DOCUMENTS (e.g., Document A vs. Document B) make contradictory, incompatible claims about the EXACT SAME entity, price, date, or clause.\n"
+        "4. FORBIDDEN: NEVER compare two different pages, sections, or paragraphs of the SAME document against each other as a conflict!\n"
+        "5. DISTINCT TOPICS ARE NOT CONFLICTS: Comparing two different items (e.g. Milestone 1 vs. Milestone 2, or problem ALG-WEB-01 vs. ALG-WEB-02) is NOT a contradiction because they are separate entities!\n"
+        "6. If no genuine cross-document contradiction exists on the same subject, return an EMPTY list for conflicts_detected.\n"
+        "7. Accurately assign a confidence score (0-100) and list reasons for uncertainty.\n"
+        "8. Provide exact verbatim quotes and page numbers for all citations."
     )
 
     user_prompt = f"""
@@ -110,7 +112,7 @@ RELEVANT EXCERPTS WITH SOURCE CITATIONS:
 USER INVESTIGATION QUERY:
 "{query}"
 
-Analyze the excerpts carefully. Detect any conflicts across distinct documents. Return your full forensic audit following the requested schema.
+Analyze the excerpts carefully. Detect any conflicts across distinct documents. Return your grounded analysis following the requested schema without adding any 'Forensic Audit:' prefix.
 """
 
     try:
@@ -123,6 +125,15 @@ Analyze the excerpts carefully. Detect any conflicts across distinct documents. 
         )
         parsed = json.loads(raw_text)
         result = InvestigationResult(**parsed)
+
+        # Strip any generic robotic "Forensic Audit:" prefix if generated
+        if result.synthesized_answer:
+            result.synthesized_answer = re.sub(
+                r'^(#+\s*|\*\*)?Forensic Audit:?\s*(\*\*)?\s*',
+                '',
+                result.synthesized_answer,
+                flags=re.IGNORECASE
+            ).strip()
 
         # Programmatic safeguard: Enforce that Document A and Document B MUST be two different files
         def clean_doc_name(d: str) -> str:

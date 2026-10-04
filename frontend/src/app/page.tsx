@@ -142,11 +142,14 @@ function generateBannerSubtitle(conflicts: ConflictItem[]): string {
 }
 
 function cleanSectionHeadings(markdown: string): string {
-  const hasMultiple = /#{1,4}\s+2\.\s+/m.test(markdown);
+  if (!markdown) return "";
+  // Strip robotic "Forensic Audit:" prefix if present
+  let cleaned = markdown.replace(/^(#+\s*|\*\*)?Forensic Audit:?\s*(\*\*)?\s*/i, "");
+  const hasMultiple = /#{1,4}\s+2\.\s+/m.test(cleaned);
   if (!hasMultiple) {
-    return markdown.replace(/^(#{1,4}\s+)1\.\s+/gm, "$1");
+    return cleaned.replace(/^(#{1,4}\s+)1\.\s+/gm, "$1");
   }
-  return markdown;
+  return cleaned;
 }
 
 function getConflictValues(item: ConflictItem): string[] {
@@ -385,6 +388,12 @@ export default function Home() {
       }
 
       const data = await res.json();
+      if (data.result?.synthesized_answer) {
+        data.result.synthesized_answer = data.result.synthesized_answer.replace(
+          /^(#+\s*|\*\*)?Forensic Audit:?\s*(\*\*)?\s*/i,
+          ""
+        ).trim();
+      }
       const docvMsg: Message = {
         id: Math.random().toString(),
         sender: "docv",
