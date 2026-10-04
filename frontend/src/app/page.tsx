@@ -240,35 +240,34 @@ export default function Home() {
   // Export report as markdown
   const handleExportReport = () => {
     if (!activeResult) return;
-    const report = `# 🛡️ docV.ai — Forensic Document Investigation Dossier
+    const report = `# docV.ai — Investigation Report
 Generated: ${new Date().toLocaleString()}
-Official PS: ALG-AI-02 Intelligent Document Investigator
 Query: "${activeResult.query}"
 
 ---
 
-## 1. Executive Forensic Synthesis
+## 1. Synthesis
 ${activeResult.synthesized_answer}
 
-## 2. Grounding & Uncertainty Metrics
-- **Factual Grounding Score:** ${activeResult.confidence_score}%
+## 2. Grounding & Uncertainty
+- **Grounding Score:** ${activeResult.confidence_score}%
 - **Uncertainty Level:** ${activeResult.uncertainty_level}
 - **Factors & Caveats:**
 ${activeResult.uncertainty_reasons.map((r) => `  * ${r}`).join("\n")}
 
-## 3. Cross-Document Contradictions & Conflict Matrix (${activeResult.conflicts_detected.length} Detected)
+## 3. Discrepancies (${activeResult.conflicts_detected.length} Detected)
 ${activeResult.conflicts_detected
   .map(
     (c, i) => `
 ### Discrepancy ${i + 1}: ${c.topic} [Severity: ${c.severity}]
 - **Source A (${c.document_a}):** "${c.claim_a}"
 - **Source B (${c.document_b}):** "${c.claim_b}"
-- **Auditor's Resolution:** ${c.resolution_note}
+- **Resolution:** ${c.resolution_note}
 `
   )
   .join("\n")}
 
-## 4. Supporting Verbatim Citations (${activeResult.citations.length} Sources)
+## 4. Sources (${activeResult.citations.length})
 ${activeResult.citations
   .map((cite) => `- **${cite.doc_name} (Page ${cite.page_number})**: "${cite.quote}"`)
   .join("\n")}
@@ -284,29 +283,26 @@ ${activeResult.citations
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#141413] text-[#f4f3ef] font-sans">
-      {/* 1. Left Sidebar: Document Vault (Claude-style drawer) */}
+    <div className="flex h-screen w-screen overflow-hidden bg-[var(--bg)] text-[var(--text)] font-sans">
+      {/* 1. Left Sidebar: Document Vault */}
       <aside
         className={`${
           sidebarOpen ? "w-72" : "w-0"
-        } transition-all duration-300 ease-in-out border-r border-[#242421] bg-[#1a1a18] flex flex-col overflow-hidden relative z-20`}
+        } transition-all duration-300 ease-in-out border-r border-[var(--border-subtle)] bg-[var(--surface)] flex flex-col overflow-hidden relative z-20`}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-[#242421] flex items-center justify-between">
+        <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-[#cc785c]/15 border border-[#cc785c]/30 flex items-center justify-center text-[#cc785c]">
-              <Sparkles className="w-4 h-4 fill-[#cc785c]" />
+            <div className="w-7 h-7 rounded-md bg-[var(--surface-raised)] border border-[var(--border)] flex items-center justify-center text-[var(--text)]">
+              <Sparkles className="w-4 h-4 text-[var(--text)]" />
             </div>
             <div>
-              <span className="font-semibold text-sm tracking-tight text-[#f4f3ef]">docV.ai</span>
-              <span className="text-[10px] ml-1.5 px-1.5 py-0.5 rounded bg-[#242421] text-[#9c9a92] font-mono">
-                v1.0
-              </span>
+              <span className="font-semibold text-sm tracking-tight text-[var(--text)]">docV.ai</span>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="text-[#9c9a92] hover:text-[#f4f3ef] p-1 rounded-md hover:bg-[#242421] transition cursor-pointer"
+            className="text-[var(--text-muted)] hover:text-[var(--text)] p-1 rounded-md hover:bg-[var(--surface-raised)] transition cursor-pointer"
             title="Collapse Sidebar"
           >
             <PanelLeftClose className="w-4 h-4" />
@@ -317,9 +313,9 @@ ${activeResult.citations
         <div className="p-3">
           <button
             onClick={handleReset}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[#242421] hover:bg-[#2b2b27] border border-[#2e2e29] text-xs font-medium text-[#f4f3ef] transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[#20201d] border border-[var(--border)] text-xs font-medium text-[var(--text)] transition cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-[#cc785c]" />
+            <RotateCcw className="w-3.5 h-3.5 text-[var(--text-muted)]" />
             <span>New Investigation</span>
           </button>
         </div>
@@ -327,15 +323,15 @@ ${activeResult.citations
         {/* Upload & Knowledge Repository */}
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
           <div>
-            <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wider text-[#9c9a92] mb-2 px-1">
-              <span>Document Vault</span>
-              <span className="text-[10px] bg-[#242421] px-1.5 py-0.5 rounded text-[#9c9a92]">
+            <div className="flex items-center justify-between text-xs font-medium text-[var(--text-muted)] mb-2 px-1">
+              <span>Documents</span>
+              <span className="text-xs bg-[var(--surface-raised)] px-1.5 py-0.5 rounded text-[var(--text-muted)]">
                 {documents.length}
               </span>
             </div>
 
             {/* Drag & Drop Upload Tile */}
-            <label className="border border-dashed border-[#2e2e29] hover:border-[#cc785c]/50 bg-[#161615] hover:bg-[#20201d] rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition group">
+            <label className="border border-dashed border-[var(--border)] hover:border-[var(--accent)] bg-[var(--surface-raised)] rounded-lg p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition group">
               <input
                 type="file"
                 multiple
@@ -344,12 +340,12 @@ ${activeResult.citations
                 className="hidden"
                 disabled={uploading}
               />
-              <UploadCloud className="w-5 h-5 text-[#9c9a92] group-hover:text-[#cc785c] transition" />
+              <UploadCloud className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--text)] transition" />
               <div className="text-center">
-                <p className="text-xs font-medium text-[#e4e2dd]">
+                <p className="text-xs font-medium text-[var(--text)]">
                   {uploading ? "Ingesting & indexing..." : "Add documents"}
                 </p>
-                <p className="text-[10px] text-[#787670]">PDFs, Scanned OCR, Text</p>
+                <p className="text-xs text-[var(--text-muted)]">PDFs, Scanned OCR, Text</p>
               </div>
             </label>
           </div>
@@ -357,11 +353,11 @@ ${activeResult.citations
           {/* Active Documents List */}
           <div className="space-y-1.5">
             {documents.length === 0 ? (
-              <div className="p-4 text-center text-[#787670] text-xs">
-                No files loaded.
+              <div className="p-4 text-center text-[var(--text-muted)] text-xs">
+                No documents loaded.
                 <button
                   onClick={handleLoadSample}
-                  className="block mx-auto mt-2 text-[11px] text-[#cc785c] hover:underline cursor-pointer"
+                  className="block mx-auto mt-2 text-xs text-[var(--accent)] hover:underline cursor-pointer"
                 >
                   Load Demo Case
                 </button>
@@ -370,54 +366,42 @@ ${activeResult.citations
               documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="p-2.5 rounded-lg bg-[#20201d] border border-[#2b2b27] hover:border-[#3a3a34] transition flex items-center justify-between text-xs group"
+                  className="p-2.5 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] transition flex items-center justify-between text-xs"
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <FileText className="w-4 h-4 text-[#cc785c] flex-shrink-0" />
+                    <FileText className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
                     <div className="overflow-hidden">
-                      <p className="text-xs text-[#e4e2dd] truncate font-medium">{doc.filename}</p>
-                      <p className="text-[10px] text-[#787670]">
+                      <p className="text-xs text-[var(--text)] truncate font-medium">{doc.filename}</p>
+                      <p className="text-xs text-[var(--text-muted)]">
                         {doc.total_pages} {doc.total_pages === 1 ? "page" : "pages"} • {doc.file_type.toUpperCase()}
                       </p>
                     </div>
                   </div>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" title="Indexed & Grounded" />
                 </div>
               ))
             )}
           </div>
         </div>
-
-        {/* Sidebar Footer with PS Info */}
-        <div className="p-3 border-t border-[#242421] bg-[#161615]">
-          <div className="text-[11px] text-[#9c9a92] flex items-center justify-between">
-            <span>Track: ALG-AI-02</span>
-            <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${backendOnline ? "bg-emerald-400" : "bg-rose-500"}`} />
-              <span className="text-[10px]">{backendOnline ? "Online" : "Offline"}</span>
-            </span>
-          </div>
-        </div>
       </aside>
 
       {/* 2. Main Stage: Conversation & Query View */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#141413]">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[var(--bg)]">
         {/* Top Navbar */}
-        <header className="h-13 border-b border-[#242421] px-5 flex items-center justify-between bg-[#141413]/80 backdrop-blur-sm z-10">
+        <header className="h-13 border-b border-[var(--border-subtle)] px-5 flex items-center justify-between bg-[var(--bg)]/90 backdrop-blur-sm z-10">
           <div className="flex items-center gap-3">
             {!sidebarOpen && (
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="text-[#9c9a92] hover:text-[#f4f3ef] p-1.5 rounded-md hover:bg-[#20201d] transition cursor-pointer"
+                className="text-[var(--text-muted)] hover:text-[var(--text)] p-1.5 rounded-md hover:bg-[var(--surface-raised)] transition cursor-pointer"
                 title="Expand Document Vault"
               >
                 <PanelLeftOpen className="w-4 h-4" />
               </button>
             )}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#f4f3ef] tracking-tight">docV.ai</span>
-              <span className="text-[#5a5953]">•</span>
-              <span className="text-xs text-[#9c9a92]">Intelligent Document Investigator</span>
+              <span className="text-sm font-semibold text-[var(--text)] tracking-tight">docV.ai</span>
+              <span className="text-[var(--text-muted)]">•</span>
+              <span className="text-xs text-[var(--text-muted)]">Intelligent Document Investigator</span>
             </div>
           </div>
 
@@ -425,7 +409,7 @@ ${activeResult.citations
             <button
               onClick={handleLoadSample}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#cc785c]/10 text-[#cc785c] border border-[#cc785c]/25 hover:bg-[#cc785c]/20 transition cursor-pointer disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white transition cursor-pointer disabled:opacity-40"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Load Demo Case</span>
@@ -434,10 +418,10 @@ ${activeResult.citations
             {activeResult && !artifactOpen && (
               <button
                 onClick={() => setArtifactOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#20201d] border border-[#2e2e29] hover:bg-[#2b2b27] text-[#e4e2dd] transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--surface-raised)] border border-[var(--border)] hover:border-[var(--border-subtle)] text-[var(--text)] transition cursor-pointer"
               >
-                <PanelRightOpen className="w-3.5 h-3.5 text-[#cc785c]" />
-                <span>Open Dossier ({activeResult.conflicts_detected.length} Conflicts)</span>
+                <PanelRightOpen className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                <span>Findings ({activeResult.conflicts_detected.length})</span>
               </button>
             )}
           </div>
@@ -446,18 +430,18 @@ ${activeResult.citations
         {/* Conversation Message Stream */}
         <main className="flex-1 overflow-y-auto px-6 py-6 flex flex-col items-center">
           <div className="w-full max-w-3xl flex-1 flex flex-col justify-between">
-            {/* If No Messages: Claude Hero Greeting */}
+            {/* If No Messages: Clean Greeting */}
             {messages.length === 0 ? (
               <div className="my-auto text-center space-y-6 py-12">
-                <div className="w-12 h-12 rounded-2xl bg-[#cc785c]/10 border border-[#cc785c]/20 flex items-center justify-center mx-auto text-[#cc785c]">
-                  <Sparkles className="w-6 h-6 fill-[#cc785c]" />
+                <div className="w-10 h-10 rounded-xl bg-[var(--surface-raised)] border border-[var(--border)] flex items-center justify-center mx-auto text-[var(--text)]">
+                  <Sparkles className="w-5 h-5 text-[var(--text)]" />
                 </div>
                 <div className="space-y-2">
-                  <h1 className="text-2xl font-medium tracking-tight text-[#f4f3ef]">
+                  <h1 className="text-xl font-medium tracking-tight text-[var(--text)]">
                     What would you like to investigate?
                   </h1>
-                  <p className="text-sm text-[#9c9a92] max-w-md mx-auto">
-                    Upload multi-page contracts, scanned invoices, or email chains. docV.ai cross-references claims,
+                  <p className="text-sm text-[var(--text-muted)] max-w-md mx-auto leading-relaxed">
+                    Upload multi-page contracts, invoices, or addenda. docV.ai cross-references claims,
                     uncovers discrepancies, and provides page-grounded citations.
                   </p>
                 </div>
@@ -469,13 +453,13 @@ ${activeResult.citations
                       if (documents.length === 0) handleLoadSample();
                       else executeInvestigation("What is the final approved amount and deadline for Milestone 1?");
                     }}
-                    className="p-3.5 rounded-xl bg-[#1e1e1c] hover:bg-[#262623] border border-[#2b2b27] transition text-xs text-[#e4e2dd] space-y-1 cursor-pointer group"
+                    className="p-3.5 rounded-lg bg-[var(--surface-raised)] hover:bg-[#20201d] border border-[var(--border)] transition text-left cursor-pointer space-y-1 group"
                   >
-                    <div className="font-medium text-[#cc785c] group-hover:underline flex items-center gap-1.5">
+                    <div className="font-medium text-xs text-[var(--text)] group-hover:text-[var(--accent)] flex items-center gap-1.5">
                       <span>Milestone 1 Price & Deadline</span>
-                      <ChevronRight className="w-3 h-3" />
+                      <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
                     </div>
-                    <p className="text-[11px] text-[#787670]">
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                       Cross-checks MSA vs. Addendum vs. Invoice for billing discrepancies.
                     </p>
                   </button>
@@ -485,13 +469,13 @@ ${activeResult.citations
                       if (documents.length === 0) handleLoadSample();
                       else executeInvestigation("Are there any penalty or governing law stipulations?");
                     }}
-                    className="p-3.5 rounded-xl bg-[#1e1e1c] hover:bg-[#262623] border border-[#2b2b27] transition text-xs text-[#e4e2dd] space-y-1 cursor-pointer group"
+                    className="p-3.5 rounded-lg bg-[var(--surface-raised)] hover:bg-[#20201d] border border-[var(--border)] transition text-left cursor-pointer space-y-1 group"
                   >
-                    <div className="font-medium text-[#cc785c] group-hover:underline flex items-center gap-1.5">
+                    <div className="font-medium text-xs text-[var(--text)] group-hover:text-[var(--accent)] flex items-center gap-1.5">
                       <span>Penalties & Governing Law</span>
-                      <ChevronRight className="w-3 h-3" />
+                      <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
                     </div>
-                    <p className="text-[11px] text-[#787670]">
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                       Audits late delivery clauses and jurisdictional obligations.
                     </p>
                   </button>
@@ -505,43 +489,66 @@ ${activeResult.citations
                     {msg.sender === "user" ? (
                       /* User Message */
                       <div className="flex justify-end">
-                        <div className="max-w-xl bg-[#242421] text-[#f4f3ef] border border-[#2e2e29] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed">
+                        <div className="max-w-xl bg-[var(--surface-raised)] text-[var(--text)] border border-[var(--border)] rounded-xl px-4 py-2.5 text-[15px] leading-relaxed">
                           {msg.text}
                         </div>
                       </div>
                     ) : (
                       /* docV.ai Assistant Message */
                       <div className="flex gap-3 max-w-2xl">
-                        <div className="w-7 h-7 rounded-lg bg-[#cc785c]/15 border border-[#cc785c]/30 flex items-center justify-center text-[#cc785c] flex-shrink-0 mt-0.5">
-                          <Sparkles className="w-4 h-4 fill-[#cc785c]" />
+                        <div className="w-7 h-7 rounded-md bg-[var(--surface-raised)] border border-[var(--border)] flex items-center justify-center text-[var(--text)] flex-shrink-0 mt-0.5">
+                          <Sparkles className="w-4 h-4 text-[var(--text)]" />
                         </div>
                         <div className="flex-1 space-y-3">
-                          <div className="text-[15px] leading-relaxed text-[#dedbd4] space-y-2.5">
+                          <div className="text-[15px] leading-relaxed text-[var(--text)] space-y-2.5">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                h1: ({ node, ...props }) => <h1 className="text-lg font-semibold text-[#f4f3ef] mt-3.5 mb-2" {...props} />,
-                                h2: ({ node, ...props }) => <h2 className="text-base font-semibold text-[#f4f3ef] mt-4 mb-2 border-b border-[#2b2b27] pb-1" {...props} />,
-                                h3: ({ node, ...props }) => <h3 className="text-sm font-semibold text-[#f4f3ef] mt-3 mb-1.5" {...props} />,
-                                p: ({ node, ...props }) => <p className="mb-2.5 leading-relaxed text-[#dedbd4]" {...props} />,
-                                strong: ({ node, ...props }) => <strong className="font-semibold text-[#f4f3ef]" {...props} />,
-                                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1.5 mb-3 pl-1 text-[15px] text-[#dedbd4]" {...props} />,
-                                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1.5 mb-3 pl-1 text-[15px] text-[#dedbd4]" {...props} />,
+                                h1: ({ node, ...props }) => <h1 className="text-base font-semibold text-[var(--text)] mt-3 mb-1.5" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-sm font-semibold text-[var(--text)] mt-3 mb-1.5 border-b border-[var(--border-subtle)] pb-1" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-xs font-semibold text-[var(--text)] mt-2.5 mb-1" {...props} />,
+                                p: ({ node, ...props }) => <p className="mb-2 leading-relaxed text-[var(--text)]" {...props} />,
+                                strong: ({ node, ...props }) => <strong className="font-semibold text-[var(--text)]" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1 mb-2.5 pl-1 text-[15px] text-[var(--text)]" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1 mb-2.5 pl-1 text-[15px] text-[var(--text)]" {...props} />,
                                 li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
-                                hr: () => <hr className="border-[#2b2b27] my-3.5" />,
+                                hr: () => <hr className="border-[var(--border-subtle)] my-3" />,
                                 table: ({ node, ...props }) => (
-                                  <div className="overflow-x-auto my-3 rounded-lg border border-[#2b2b27]">
-                                    <table className="w-full text-left text-sm border-collapse" {...props} />
+                                  <div className="overflow-x-auto my-3 rounded border border-[var(--border)]">
+                                    <table className="w-full text-left text-xs border-collapse" {...props} />
                                   </div>
                                 ),
-                                thead: ({ node, ...props }) => <thead className="bg-[#1e1e1c] text-[#f4f3ef] border-b border-[#2b2b27]" {...props} />,
-                                th: ({ node, ...props }) => <th className="p-2.5 font-semibold text-sm text-[#cc785c]" {...props} />,
-                                td: ({ node, ...props }) => <td className="p-2.5 border-t border-[#242421] text-[13.5px] text-[#dedbd4]" {...props} />,
+                                thead: ({ node, ...props }) => <thead className="bg-[var(--surface-raised)] text-[var(--text)] border-b border-[var(--border)]" {...props} />,
+                                th: ({ node, ...props }) => <th className="p-2.5 font-medium text-xs text-[var(--text-muted)] border-b border-[var(--border)]" {...props} />,
+                                td: ({ node, children, ...props }) => {
+                                  const getText = (c: any): string => {
+                                    if (!c) return "";
+                                    if (typeof c === "string") return c;
+                                    if (typeof c === "number") return String(c);
+                                    if (Array.isArray(c)) return c.map(getText).join("");
+                                    if (c.props?.children) return getText(c.props.children);
+                                    return "";
+                                  };
+                                  const raw = getText(children).trim();
+                                  const isMismatch = /discrepan|mismatch|conflict|overbill|unapproved|\+\$|\$72,500|april 10/i.test(raw);
+                                  return (
+                                    <td
+                                      className={`p-2.5 border-t border-[var(--border-subtle)] text-xs leading-relaxed ${
+                                        isMismatch
+                                          ? "bg-[var(--danger-bg)] text-[var(--danger)] font-medium"
+                                          : "text-[var(--text)]"
+                                      }`}
+                                      {...props}
+                                    >
+                                      {children}
+                                    </td>
+                                  );
+                                },
                                 blockquote: ({ node, ...props }) => (
-                                  <blockquote className="border-l-2 border-[#cc785c] pl-3 py-1 my-2 text-xs italic text-[#9c9a92] bg-[#1a1a18] rounded-r" {...props} />
+                                  <blockquote className="border-l-2 border-[var(--border)] pl-3 py-1 my-2 text-xs italic text-[var(--text-muted)] bg-[var(--surface-raised)] rounded-r" {...props} />
                                 ),
                                 code: ({ node, className, children, ...props }) => (
-                                  <code className="px-1.5 py-0.5 rounded bg-[#242421] text-[#cc785c] font-mono text-[13px] border border-[#2e2e29]" {...props}>
+                                  <code className="px-1.5 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text)] font-mono text-xs border border-[var(--border-subtle)]" {...props}>
                                     {children}
                                   </code>
                                 )
@@ -551,43 +558,51 @@ ${activeResult.citations
                             </ReactMarkdown>
                           </div>
 
-                          {/* Interactive Conflict Banner (Claude Artifact Trigger) */}
-                          {msg.result && msg.result.conflicts_detected.length > 0 && (
-                            <div
-                              onClick={() => {
-                                setActiveResult(msg.result || null);
-                                setArtifactOpen(true);
-                                setArtifactTab("conflicts");
-                              }}
-                              className="rounded-xl border border-[#cc785c]/30 bg-gradient-to-r from-[#cc785c]/10 to-[#20201d] p-3.5 flex items-center justify-between cursor-pointer hover:border-[#cc785c]/60 transition group shadow-sm"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-[#cc785c]/20 text-[#cc785c]">
-                                  <AlertTriangle className="w-4 h-4" />
+                          {/* Conflict Discrepancy Banner */}
+                          {msg.result && msg.result.conflicts_detected.length > 0 && (() => {
+                            const count = msg.result.conflicts_detected.length;
+                            const countLabel = `${count} ${count === 1 ? "discrepancy" : "discrepancies"} found`;
+                            return (
+                              <div
+                                onClick={() => {
+                                  setActiveResult(msg.result || null);
+                                  setArtifactOpen(true);
+                                  setArtifactTab("conflicts");
+                                }}
+                                className="rounded-lg border border-[var(--accent)]/40 bg-[var(--surface-raised)] hover:border-[var(--accent)] p-3 flex items-center justify-between cursor-pointer transition"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 rounded bg-[var(--accent)]/15 text-[var(--accent)]">
+                                    <AlertTriangle className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-[var(--text)]">
+                                      {countLabel}
+                                    </p>
+                                    <p className="text-xs text-[var(--text-muted)]">
+                                      Conflicting payment terms or delivery dates detected across files.
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-xs font-semibold text-[#f4f3ef]">
-                                    {msg.result.conflicts_detected.length} Cross-Document Discrepancies Found
-                                  </p>
-                                  <p className="text-[11px] text-[#9c9a92]">
-                                    Conflicting payment terms and delivery dates detected across files.
-                                  </p>
+                                <div className="flex items-center gap-1 text-xs text-[var(--accent)] font-medium">
+                                  <span>Inspect</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 text-xs text-[#cc785c] font-medium group-hover:translate-x-0.5 transition">
-                                <span>Inspect in Dossier</span>
-                                <ChevronRight className="w-4 h-4" />
-                              </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
-                          {/* Source Citations Badges */}
+                          {/* Deduplicated Source Citations */}
                           {msg.result && msg.result.citations.length > 0 && (
                             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              <span className="text-[10px] text-[#787670] uppercase font-mono tracking-wider mr-1">
-                                Grounded in:
+                              <span className="text-xs text-[var(--text-muted)] mr-1">
+                                Sources:
                               </span>
-                              {msg.result.citations.map((cite, i) => (
+                              {Array.from(
+                                new Map(
+                                  msg.result.citations.map((c) => [`${c.doc_name}-${c.page_number}`, c])
+                                ).values()
+                              ).map((cite, i) => (
                                 <button
                                   key={i}
                                   onClick={() => {
@@ -595,11 +610,11 @@ ${activeResult.citations
                                     setArtifactOpen(true);
                                     setArtifactTab("sources");
                                   }}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#1e1e1c] border border-[#2b2b27] hover:border-[#cc785c]/40 text-[11px] text-[#a8a49c] hover:text-[#f4f3ef] transition cursor-pointer"
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[var(--surface-raised)] border border-[var(--border)] hover:border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition cursor-pointer"
                                 >
-                                  <FileText className="w-3 h-3 text-[#cc785c]" />
+                                  <FileText className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                                   <span>{cite.doc_name}</span>
-                                  <span className="text-[10px] text-[#787670]">p.{cite.page_number}</span>
+                                  <span className="text-[var(--text-muted)]/70">p.{cite.page_number}</span>
                                 </button>
                               ))}
                             </div>
@@ -613,11 +628,11 @@ ${activeResult.citations
                 {/* Investigating Loading Indicator */}
                 {loading && (
                   <div className="flex gap-3 max-w-2xl">
-                    <div className="w-7 h-7 rounded-lg bg-[#cc785c]/15 border border-[#cc785c]/30 flex items-center justify-center text-[#cc785c] flex-shrink-0 mt-0.5 animate-pulse">
-                      <Sparkles className="w-4 h-4 fill-[#cc785c]" />
+                    <div className="w-7 h-7 rounded-md bg-[var(--surface-raised)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] flex-shrink-0 mt-0.5 animate-pulse">
+                      <Sparkles className="w-4 h-4 text-[var(--text-muted)]" />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-[#9c9a92] pt-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#cc785c] animate-ping" />
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] pt-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-ping" />
                       <span>Investigating cross-document consensus, citations, and conflicts...</span>
                     </div>
                   </div>
@@ -628,31 +643,31 @@ ${activeResult.citations
 
             {/* Error Notice */}
             {error && (
-              <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center justify-between">
+              <div className="mt-3 p-3 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger)]/30 text-[var(--danger)] text-xs flex items-center justify-between">
                 <span>{error}</span>
-                <button onClick={() => setError(null)} className="text-rose-400 hover:text-white">✕</button>
+                <button onClick={() => setError(null)} className="text-[var(--danger)] hover:text-[var(--text)]">✕</button>
               </div>
             )}
           </div>
         </main>
 
-        {/* Permanently Fixed Compact Input Bar at the Bottom */}
-        <div className="flex-shrink-0 w-full px-5 pb-3 pt-2 bg-gradient-to-t from-[#141413] via-[#141413]/95 to-transparent flex flex-col items-center z-10">
+        {/* Fixed Input Bar */}
+        <div className="flex-shrink-0 w-full px-5 pb-3 pt-2 bg-[var(--bg)] border-t border-[var(--border-subtle)] flex flex-col items-center z-10">
           <div className="w-full max-w-3xl">
-            <div className="bg-[#1e1e1c] border border-[#2e2e29] focus-within:border-[#cc785c]/60 rounded-xl px-3 py-2 shadow-lg transition">
-              {/* Ultra-compact Active Document Pill */}
+            <div className="bg-[var(--surface-raised)] border border-[var(--border)] focus-within:border-[var(--accent)] rounded-lg px-3 py-2 transition">
+              {/* Active Document Indicator */}
               {documents.length > 0 && (
-                <div className="flex items-center gap-1.5 pb-1.5 text-[10px] text-[#787670] border-b border-[#292925] mb-1.5">
-                  <Layers className="w-3 h-3 text-[#cc785c]" />
-                  <span>{documents.length} files active:</span>
+                <div className="flex items-center gap-1.5 pb-1.5 text-xs text-[var(--text-muted)] border-b border-[var(--border-subtle)] mb-1.5">
+                  <Layers className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  <span>{documents.length} {documents.length === 1 ? "document" : "documents"} loaded:</span>
                   <div className="flex items-center gap-1 overflow-hidden truncate">
                     {documents.slice(0, 3).map((d) => (
-                      <span key={d.id} className="px-1.5 py-0.2 rounded bg-[#272724] text-[#a8a49c] truncate text-[9px]">
+                      <span key={d.id} className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-xs">
                         {d.filename}
                       </span>
                     ))}
                     {documents.length > 3 && (
-                      <span className="text-[9px] text-[#787670]">+{documents.length - 3}</span>
+                      <span className="text-xs text-[var(--text-muted)]">+{documents.length - 3}</span>
                     )}
                   </div>
                 </div>
@@ -675,79 +690,76 @@ ${activeResult.citations
                       ? "Load demo case or add documents to start investigating..."
                       : "Ask docV.ai to audit, compare, or uncover conflicts..."
                   }
-                  className="flex-1 bg-transparent border-0 text-sm text-[#f4f3ef] placeholder-[#6b6963] focus:outline-none resize-none max-h-24 min-h-[32px] py-1 leading-relaxed"
+                  className="flex-1 bg-transparent border-0 text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none resize-none max-h-24 min-h-[32px] py-1 leading-relaxed"
                 />
 
                 <button
                   onClick={() => executeInvestigation()}
                   disabled={loading || !inputQuery.trim() || documents.length === 0}
-                  className="w-7 h-7 rounded-lg bg-[#cc785c] hover:bg-[#db886d] disabled:bg-[#2b2b27] text-white flex items-center justify-center transition cursor-pointer disabled:cursor-not-allowed disabled:text-[#5a5953] flex-shrink-0"
+                  className="w-7 h-7 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:bg-[var(--border)] text-white flex items-center justify-center transition cursor-pointer disabled:cursor-not-allowed disabled:text-[var(--text-muted)] flex-shrink-0"
                   title="Send"
                 >
                   <ArrowUp className="w-3.5 h-3.5 stroke-[2.5]" />
                 </button>
               </div>
             </div>
-            <p className="text-[9px] text-center text-[#5a5953] mt-1.5">
-              docV.ai • ALG-AI-02 Intelligent Document Investigator
-            </p>
           </div>
         </div>
       </div>
 
-      {/* 3. Right Panel: Investigation Dossier & Artifacts (Claude Split-Screen) */}
+      {/* 3. Right Panel: Findings & Artifacts */}
       {artifactOpen && activeResult && (
-        <aside className="w-96 border-l border-[#242421] bg-[#1a1a18] flex flex-col h-full z-20 shadow-2xl transition-all">
-          {/* Dossier Header */}
-          <div className="p-4 border-b border-[#242421] flex items-center justify-between bg-[#161615]">
+        <aside className="w-96 border-l border-[var(--border-subtle)] bg-[var(--surface)] flex flex-col h-full z-20 transition-all">
+          {/* Findings Header */}
+          <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface)]">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-[#cc785c]/10 text-[#cc785c]">
-                <ShieldCheck className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-md bg-[var(--surface-raised)] border border-[var(--border)] flex items-center justify-center text-[var(--text)]">
+                <ShieldCheck className="w-4 h-4 text-[var(--text)]" />
               </div>
               <div>
-                <h3 className="text-xs font-semibold text-[#f4f3ef]">Investigation Dossier</h3>
-                <p className="text-[10px] text-[#787670]">Forensic Evidence & Conflict Matrix</p>
+                <h3 className="text-xs font-semibold text-[var(--text)]">Findings</h3>
+                <p className="text-xs text-[var(--text-muted)]">Evidence</p>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5">
               <button
                 onClick={handleExportReport}
-                className="p-1.5 text-[#9c9a92] hover:text-[#f4f3ef] rounded-md hover:bg-[#242421] transition cursor-pointer"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] rounded-md hover:bg-[var(--surface-raised)] transition cursor-pointer"
                 title="Download Markdown Report"
               >
                 <Download className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setArtifactOpen(false)}
-                className="p-1.5 text-[#9c9a92] hover:text-[#f4f3ef] rounded-md hover:bg-[#242421] transition cursor-pointer"
-                title="Close Dossier"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] rounded-md hover:bg-[var(--surface-raised)] transition cursor-pointer"
+                title="Close Findings"
               >
                 <PanelRightClose className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Dossier Tabs */}
-          <div className="flex border-b border-[#242421] bg-[#1a1a18] px-3 pt-2 gap-1 text-xs">
+          {/* Findings Tabs */}
+          <div className="flex border-b border-[var(--border-subtle)] bg-[var(--surface)] px-3 pt-2 gap-1 text-xs">
             <button
               onClick={() => setArtifactTab("conflicts")}
               className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 ${
                 artifactTab === "conflicts"
-                  ? "border-[#cc785c] text-[#cc785c]"
-                  : "border-transparent text-[#787670] hover:text-[#a8a49c]"
+                  ? "border-[var(--accent)] text-[var(--accent)]"
+                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}
             >
               <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Conflicts ({activeResult.conflicts_detected.length})</span>
+              <span>Discrepancies ({activeResult.conflicts_detected.length})</span>
             </button>
 
             <button
               onClick={() => setArtifactTab("uncertainty")}
               className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 ${
                 artifactTab === "uncertainty"
-                  ? "border-[#cc785c] text-[#cc785c]"
-                  : "border-transparent text-[#787670] hover:text-[#a8a49c]"
+                  ? "border-[var(--accent)] text-[var(--accent)]"
+                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}
             >
               <HelpCircle className="w-3.5 h-3.5" />
@@ -758,8 +770,8 @@ ${activeResult.citations
               onClick={() => setArtifactTab("sources")}
               className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 ${
                 artifactTab === "sources"
-                  ? "border-[#cc785c] text-[#cc785c]"
-                  : "border-transparent text-[#787670] hover:text-[#a8a49c]"
+                  ? "border-[var(--accent)] text-[var(--accent)]"
+                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]"
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
@@ -773,54 +785,66 @@ ${activeResult.citations
             {artifactTab === "conflicts" && (
               <div className="space-y-3.5">
                 {activeResult.conflicts_detected.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-[#787670] border border-dashed border-[#292925] rounded-xl">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+                  <div className="p-6 text-center text-xs text-[var(--text-muted)] border border-dashed border-[var(--border)] rounded-lg">
+                    <CheckCircle2 className="w-5 h-5 text-[var(--success)] mx-auto mb-2" />
                     No cross-document contradictions detected.
                   </div>
                 ) : (
                   activeResult.conflicts_detected.map((item, idx) => (
                     <div
                       key={idx}
-                      className="rounded-xl border border-[#383832] bg-[#20201d] p-3.5 space-y-3 shadow-md"
+                      className="border-b border-[var(--border)] pb-4 pt-1 space-y-2.5 last:border-b-0"
                     >
-                      <div className="flex items-center justify-between border-b border-[#292925] pb-2">
-                        <span className="font-medium text-xs text-[#f4f3ef]">{item.topic}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-xs text-[var(--text)]">{item.topic}</span>
                         <span
-                          className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                          className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
                             item.severity === "HIGH"
-                              ? "bg-rose-500/15 text-rose-400 border border-rose-500/20"
-                              : "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                              ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger)]/30"
+                              : "bg-amber-500/10 text-amber-300 border border-amber-500/20"
                           }`}
                         >
                           {item.severity}
                         </span>
                       </div>
 
-                      {/* Side-by-side claim boxes */}
+                      {/* Clean claim comparison */}
                       <div className="space-y-2 text-xs">
-                        <div className="p-2 rounded-lg bg-[#161615] border border-[#2b2b27] space-y-1">
-                          <span className="text-[10px] text-[#cc785c] font-medium block truncate">
+                        <div className="border-l-2 border-[var(--border)] pl-2.5 py-0.5 space-y-0.5">
+                          <span className="text-xs text-[var(--text-muted)] font-medium block truncate">
                             {item.document_a}
                           </span>
-                          <p className="text-[11px] text-[#dedbd4] font-mono leading-relaxed">
+                          <p className="text-xs text-[var(--text)] font-mono leading-relaxed">
                             "{item.claim_a}"
                           </p>
                         </div>
 
-                        <div className="p-2 rounded-lg bg-[#161615] border border-[#2b2b27] space-y-1">
-                          <span className="text-[10px] text-rose-400 font-medium block truncate">
+                        <div className="border-l-2 border-[var(--border)] pl-2.5 py-0.5 space-y-0.5">
+                          <span className="text-xs text-[var(--text-muted)] font-medium block truncate">
                             {item.document_b}
                           </span>
-                          <p className="text-[11px] text-[#dedbd4] font-mono leading-relaxed">
+                          <p className="text-xs text-[var(--text)] font-mono leading-relaxed">
                             "{item.claim_b}"
                           </p>
                         </div>
                       </div>
 
-                      {/* Auditor Note */}
-                      <div className="text-[11px] text-[#9c9a92] leading-relaxed pt-1 border-t border-[#292925]">
-                        <span className="text-[#cc785c] font-medium">Resolution: </span>
-                        {item.resolution_note}
+                      {/* Resolution Note with Markdown Rendering */}
+                      <div className="text-xs text-[var(--text-muted)] leading-relaxed pt-1.5 border-t border-[var(--border-subtle)]">
+                        <span className="text-[var(--text)] font-medium mr-1">Resolution:</span>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({ node, ...p }) => <span className="inline text-[var(--text-muted)]" {...p} />,
+                            strong: ({ node, ...p }) => <strong className="font-semibold text-[var(--text)]" {...p} />,
+                            em: ({ node, ...p }) => <em className="italic text-[var(--text)]" {...p} />,
+                            code: ({ node, ...p }) => (
+                              <code className="px-1 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text)] font-mono text-[11px]" {...p} />
+                            )
+                          }}
+                        >
+                          {item.resolution_note}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   ))
@@ -831,31 +855,31 @@ ${activeResult.citations
             {/* Tab 2: Uncertainty & Grounding Metrics */}
             {artifactTab === "uncertainty" && (
               <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-[#20201d] border border-[#2b2b27] space-y-3">
+                <div className="p-3.5 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#9c9a92]">Grounding Score</span>
-                    <span className="font-bold text-[#f4f3ef] text-sm">{activeResult.confidence_score}%</span>
+                    <span className="text-[var(--text-muted)]">Grounding Score</span>
+                    <span className="font-semibold text-[var(--text)] text-sm">{activeResult.confidence_score}%</span>
                   </div>
-                  <div className="w-full bg-[#161615] h-1.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-[var(--surface)] h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-[#cc785c] h-full rounded-full transition-all"
+                      className="bg-[var(--accent)] h-full rounded-full transition-all"
                       style={{ width: `${activeResult.confidence_score}%` }}
                     />
                   </div>
-                  <div className="text-[11px] text-[#787670] flex justify-between">
+                  <div className="text-xs text-[var(--text-muted)] flex justify-between">
                     <span>Uncertainty Level:</span>
-                    <span className="font-semibold text-emerald-400">{activeResult.uncertainty_level}</span>
+                    <span className="font-semibold text-[var(--text)]">{activeResult.uncertainty_level}</span>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#20201d] border border-[#2b2b27] space-y-2">
-                  <h4 className="text-xs font-semibold text-[#dedbd4] flex items-center gap-1.5">
-                    <HelpCircle className="w-3.5 h-3.5 text-[#cc785c]" />
+                <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] space-y-2">
+                  <h4 className="text-xs font-semibold text-[var(--text)] flex items-center gap-1.5">
+                    <HelpCircle className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                     Factors & Caveats
                   </h4>
-                  <ul className="text-xs text-[#9c9a92] space-y-1.5 list-disc list-inside">
+                  <ul className="text-xs text-[var(--text-muted)] space-y-1.5 list-disc list-inside">
                     {activeResult.uncertainty_reasons.map((reason, i) => (
-                      <li key={i} className="text-[11px] leading-relaxed">
+                      <li key={i} className="leading-relaxed">
                         {reason}
                       </li>
                     ))}
@@ -870,15 +894,15 @@ ${activeResult.citations
                 {activeResult.citations.map((cite, i) => (
                   <div
                     key={i}
-                    className="p-3 rounded-xl bg-[#20201d] border border-[#2b2b27] space-y-1.5 text-xs"
+                    className="border-b border-[var(--border)] pb-3 pt-1 space-y-1.5 last:border-b-0 text-xs"
                   >
-                    <div className="flex items-center justify-between text-[#cc785c] font-medium text-[11px]">
-                      <span className="truncate">{cite.doc_name}</span>
-                      <span className="text-[10px] text-[#787670] font-mono px-1.5 py-0.2 rounded bg-[#161615]">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-[var(--text)] truncate">{cite.doc_name}</span>
+                      <span className="text-xs text-[var(--text-muted)]">
                         Page {cite.page_number}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#dedbd4] font-mono bg-[#161615] p-2.5 rounded-lg border border-[#242421] leading-relaxed">
+                    <p className="text-xs text-[var(--text-muted)] font-mono bg-[var(--surface-raised)] p-2.5 rounded border border-[var(--border-subtle)] leading-relaxed">
                       "{cite.quote}"
                     </p>
                   </div>
