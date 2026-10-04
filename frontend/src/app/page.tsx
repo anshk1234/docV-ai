@@ -196,7 +196,15 @@ function highlightQuoteValues(quote: string, relevantValues: string[]) {
 }
 
 export default function Home() {
-  const [apiUrl] = useState(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
+  const [apiUrl] = useState(() => {
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL;
+    }
+    if (typeof window !== "undefined" && window.location.hostname === "localhost" && window.location.port === "3000") {
+      return "http://localhost:8000";
+    }
+    return "";
+  });
   const [backendOnline, setBackendOnline] = useState(false);
   const [documents, setDocuments] = useState<IngestedDoc[]>([]);
   const [inputQuery, setInputQuery] = useState("");
@@ -241,7 +249,7 @@ export default function Home() {
   // Health check & fetch documents
   const checkHealth = async () => {
     try {
-      const res = await fetch(`${apiUrl}/`);
+      const res = await fetch(`${apiUrl}/api/health`);
       if (res.ok) {
         setBackendOnline(true);
         fetchDocuments();

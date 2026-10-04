@@ -1,7 +1,7 @@
 import os
 import shutil
 from typing import List, Dict
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -27,7 +27,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = "/tmp/uploads"
+else:
+    UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # In-memory document storage and search index
@@ -41,7 +44,10 @@ class QueryResponse(BaseModel):
     status: str
     result: InvestigationResult
 
-@app.get("/")
+router = APIRouter()
+
+@router.get("/")
+@router.get("/health")
 def root():
     return {
         "service": "docV.ai Document Investigator API",
@@ -50,7 +56,7 @@ def root():
         "total_chunks_indexed": len(INDEX.chunks)
     }
 
-@app.get("/api/documents")
+@router.get("/documents")
 def list_documents():
     return [
         {
@@ -63,7 +69,7 @@ def list_documents():
         for doc in DOCUMENTS.values()
     ]
 
-@app.post("/api/upload")
+@router.post("/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
     new_docs = []
     for file in files:
@@ -91,7 +97,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
         "total_documents": len(DOCUMENTS)
     }
 
-@app.post("/api/query", response_model=QueryResponse)
+@router.post("/query", response_model=QueryResponse)
 async def run_investigation(req: QueryRequest):
     if not DOCUMENTS:
         raise HTTPException(
@@ -109,20 +115,21 @@ async def run_investigation(req: QueryRequest):
     result = investigate_query(req.query, top_chunks, all_doc_names)
     return QueryResponse(status="success", result=result)
 
-@app.post("/api/reset")
+@router.post("/reset")
 def reset_workspace():
     DOCUMENTS.clear()
     INDEX.clear()
     # Clean up uploads directory (preserving .gitkeep)
-    for item in os.listdir(UPLOAD_DIR):
-        if item == ".gitkeep":
-            continue
-        item_path = os.path.join(UPLOAD_DIR, item)
-        if os.path.isfile(item_path):
-            os.remove(item_path)
+    if os.path.exists(UPLOAD_DIR):
+        for item in os.listdir(UPLOAD_DIR):
+            if item == ".gitkeep":
+                continue
+            item_path = os.path.join(UPLOAD_DIR, item)
+            if os.path.isfile(item_path):
+                os.remove(item_path)
     return {"status": "workspace cleared"}
 
-@app.post("/api/sample-data")
+@router.post("/sample-data")
 def load_sample_case():
     """
     Loads pre-configured sample documents with intentional cross-document contradictions
@@ -197,6 +204,10 @@ Notes: Invoice reflects extra consulting hours incurred during deployment.
         "documents": [doc.filename for doc in DOCUMENTS.values()],
         "suggested_query": "What is the final approved amount and deadline for Milestone 1?"
     }
+
+# Mount router for both /api prefix and root level
+app.include_router(router, prefix="/api")
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
