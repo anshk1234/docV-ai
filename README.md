@@ -198,6 +198,10 @@ Visual verification of platform test runs across backend API endpoints, frontend
 
 *Dual-server startup execution via Windows run_dev.bat.*
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/b7d7feeb-dd68-48d9-af5f-0d336373eaa2" />
+
+*Vercel deployement.*
+
 ## License
 
 MIT License.
