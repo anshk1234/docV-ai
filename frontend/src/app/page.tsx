@@ -448,7 +448,7 @@ ${activeResult.citations
         <div className="p-3">
           <button
             onClick={handleReset}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[#20201d] border border-[var(--border)] text-xs font-medium text-[var(--text)] transition cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[#20201d] border border-[var(--border)] text-sm font-medium text-[var(--text)] transition cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5 text-[var(--text-muted)]" />
             <span>New Investigation</span>
@@ -458,7 +458,7 @@ ${activeResult.citations
         {/* Upload & Knowledge Repository */}
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
           <div>
-            <div className="flex items-center justify-between text-xs font-medium text-[var(--text-muted)] mb-2 px-1">
+            <div className="flex items-center justify-between text-sm font-medium text-[var(--text-muted)] mb-2 px-1">
               <span>Documents</span>
               <span className="text-xs bg-[var(--surface-raised)] px-1.5 py-0.5 rounded text-[var(--text-muted)]">
                 {documents.length}
@@ -477,7 +477,7 @@ ${activeResult.citations
               />
               <UploadCloud className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--text)] transition" />
               <div className="text-center">
-                <p className="text-xs font-medium text-[var(--text)]">
+                <p className="text-sm font-medium text-[var(--text)]">
                   {uploading ? "Ingesting & indexing..." : "Add documents"}
                 </p>
                 <p className="text-xs text-[var(--text-muted)]">PDFs, Scanned OCR, Text</p>
@@ -488,11 +488,11 @@ ${activeResult.citations
           {/* Active Documents List */}
           <div className="space-y-1.5">
             {documents.length === 0 ? (
-              <div className="p-4 text-center text-[var(--text-muted)] text-xs">
+              <div className="p-4 text-center text-[var(--text-muted)] text-sm">
                 No documents loaded.
                 <button
                   onClick={handleLoadSample}
-                  className="block mx-auto mt-2 text-xs text-[var(--accent)] hover:underline cursor-pointer"
+                  className="block mx-auto mt-2 text-sm text-[var(--accent)] hover:underline cursor-pointer"
                 >
                   Load Demo Case
                 </button>
@@ -501,12 +501,12 @@ ${activeResult.citations
               documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="p-2.5 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] transition flex items-center justify-between text-xs"
+                  className="p-2.5 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] transition flex items-center justify-between text-sm"
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <FileText className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
                     <div className="overflow-hidden">
-                      <p className="text-xs text-[var(--text)] truncate font-medium">{doc.filename}</p>
+                      <p className="text-sm text-[var(--text)] truncate font-medium">{doc.filename}</p>
                       <p className="text-xs text-[var(--text-muted)]">
                         {doc.total_pages} {doc.total_pages === 1 ? "page" : "pages"} • {doc.file_type.toUpperCase()}
                       </p>
@@ -534,9 +534,9 @@ ${activeResult.citations
               </button>
             )}
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-[var(--text)] tracking-tight">docV.ai</span>
+              <span className="text-[15px] font-semibold text-[var(--text)] tracking-tight">docV.ai</span>
               <span className="text-[var(--text-muted)]">•</span>
-              <span className="text-xs text-[var(--text-muted)]">Intelligent Document Investigator</span>
+              <span className="text-sm text-[var(--text-muted)]">Intelligent Document Investigator</span>
             </div>
           </div>
 
@@ -544,7 +544,7 @@ ${activeResult.citations
             <button
               onClick={handleLoadSample}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white transition cursor-pointer disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white transition cursor-pointer disabled:opacity-40"
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Load Demo Case</span>
@@ -553,7 +553,7 @@ ${activeResult.citations
             {activeResult && !artifactOpen && (
               <button
                 onClick={() => setArtifactOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--surface-raised)] border border-[var(--border)] hover:border-[var(--border-subtle)] text-[var(--text)] transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-[var(--surface-raised)] border border-[var(--border)] hover:border-[var(--border-subtle)] text-[var(--text)] transition cursor-pointer"
               >
                 <PanelRightOpen className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                 <span>Findings ({activeResult.conflicts_detected.length})</span>
@@ -572,10 +572,10 @@ ${activeResult.citations
                   <Sparkles className="w-5 h-5 text-[var(--text)]" />
                 </div>
                 <div className="space-y-2">
-                  <h1 className="text-xl font-medium tracking-tight text-[var(--text)]">
+                  <h1 className="text-2xl font-medium tracking-tight text-[var(--text)]">
                     What would you like to investigate?
                   </h1>
-                  <p className="text-sm text-[var(--text-muted)] max-w-md mx-auto leading-relaxed">
+                  <p className="text-[15px] text-[var(--text-muted)] max-w-lg mx-auto leading-relaxed">
                     Upload multi-page contracts, invoices, or addenda. docV.ai cross-references claims,
                     uncovers discrepancies, and provides page-grounded citations.
                   </p>
@@ -590,11 +590,11 @@ ${activeResult.citations
                     }}
                     className="p-3.5 rounded-lg bg-[var(--surface-raised)] hover:bg-[#20201d] border border-[var(--border)] transition text-left cursor-pointer space-y-1 group"
                   >
-                    <div className="font-medium text-xs text-[var(--text)] group-hover:text-[var(--accent)] flex items-center gap-1.5">
+                    <div className="font-medium text-sm text-[var(--text)] group-hover:text-[var(--accent)] flex items-center gap-1.5">
                       <span>Milestone 1 Price & Deadline</span>
-                      <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
+                      <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                     </div>
-                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                    <p className="text-[13px] text-[var(--text-muted)] leading-relaxed">
                       Cross-checks MSA vs. Addendum vs. Invoice for billing discrepancies.
                     </p>
                   </button>
@@ -606,11 +606,11 @@ ${activeResult.citations
                     }}
                     className="p-3.5 rounded-lg bg-[var(--surface-raised)] hover:bg-[#20201d] border border-[var(--border)] transition text-left cursor-pointer space-y-1 group"
                   >
-                    <div className="font-medium text-xs text-[var(--text)] group-hover:text-[var(--accent)] flex items-center gap-1.5">
+                    <div className="font-medium text-sm text-[var(--text)] group-hover:text-[var(--accent)] flex items-center gap-1.5">
                       <span>Penalties & Governing Law</span>
-                      <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
+                      <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                     </div>
-                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                    <p className="text-[13px] text-[var(--text-muted)] leading-relaxed">
                       Audits late delivery clauses and jurisdictional obligations.
                     </p>
                   </button>
@@ -624,7 +624,7 @@ ${activeResult.citations
                     {msg.sender === "user" ? (
                       /* User Message */
                       <div className="flex justify-end">
-                        <div className="max-w-xl bg-[var(--surface-raised)] text-[var(--text)] border border-[var(--border)] rounded-xl px-4 py-2.5 text-[15px] leading-relaxed">
+                        <div className="max-w-xl bg-[var(--surface-raised)] text-[var(--text)] border border-[var(--border)] rounded-xl px-4 py-2.5 text-[16px] leading-relaxed">
                           {msg.text}
                         </div>
                       </div>
@@ -635,26 +635,26 @@ ${activeResult.citations
                           <Sparkles className="w-4 h-4 text-[var(--text)]" />
                         </div>
                         <div className="flex-1 space-y-3">
-                          <div className="text-[15px] leading-relaxed text-[var(--text)] space-y-2.5">
+                          <div className="text-[16px] leading-relaxed text-[var(--text)] space-y-3">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                h1: ({ node, ...props }) => <h1 className="text-base font-semibold text-[var(--text)] mt-3 mb-1.5" {...props} />,
-                                h2: ({ node, ...props }) => <h2 className="text-sm font-semibold text-[var(--text)] mt-3 mb-1.5 border-b border-[var(--border-subtle)] pb-1" {...props} />,
-                                h3: ({ node, ...props }) => <h3 className="text-xs font-semibold text-[var(--text)] mt-2.5 mb-1" {...props} />,
-                                p: ({ node, ...props }) => <p className="mb-2 leading-relaxed text-[var(--text)]" {...props} />,
+                                h1: ({ node, ...props }) => <h1 className="text-lg font-semibold text-[var(--text)] mt-3.5 mb-2" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-base font-semibold text-[var(--text)] mt-3.5 mb-2 border-b border-[var(--border-subtle)] pb-1" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-sm font-semibold text-[var(--text)] mt-3 mb-1" {...props} />,
+                                p: ({ node, ...props }) => <p className="mb-2.5 leading-relaxed text-[var(--text)] text-[15.5px]" {...props} />,
                                 strong: ({ node, ...props }) => <strong className="font-semibold text-[var(--text)]" {...props} />,
-                                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1 mb-2.5 pl-1 text-[15px] text-[var(--text)]" {...props} />,
-                                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1 mb-2.5 pl-1 text-[15px] text-[var(--text)]" {...props} />,
-                                li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1 mb-2.5 pl-1 text-[15.5px] text-[var(--text)]" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1 mb-2.5 pl-1 text-[15.5px] text-[var(--text)]" {...props} />,
+                                li: ({ node, ...props }) => <li className="leading-relaxed text-[15.5px]" {...props} />,
                                 hr: () => <hr className="border-[var(--border-subtle)] my-3" />,
                                 table: ({ node, ...props }) => (
                                   <div className="overflow-x-auto my-3 rounded border border-[var(--border)]">
-                                    <table className="w-full text-left text-xs border-collapse" {...props} />
+                                    <table className="w-full text-left text-sm border-collapse" {...props} />
                                   </div>
                                 ),
                                 thead: ({ node, ...props }) => <thead className="bg-[var(--surface-raised)] text-[var(--text)] border-b border-[var(--border)]" {...props} />,
-                                th: ({ node, ...props }) => <th className="p-2.5 font-medium text-xs text-[var(--text-muted)] border-b border-[var(--border)]" {...props} />,
+                                th: ({ node, ...props }) => <th className="p-2.5 font-semibold text-xs text-[var(--text-muted)] border-b border-[var(--border)]" {...props} />,
                                 td: ({ node, children, ...props }) => {
                                   const getText = (c: any): string => {
                                     if (!c) return "";
@@ -668,7 +668,7 @@ ${activeResult.citations
                                   const isMismatch = /discrepan|mismatch|conflict|overbill|unapproved|\+\$|\$72,500|april 10/i.test(raw);
                                   return (
                                     <td
-                                      className={`p-2.5 border-t border-[var(--border-subtle)] text-xs leading-relaxed ${
+                                      className={`p-2.5 border-t border-[var(--border-subtle)] text-[13.5px] leading-relaxed ${
                                         isMismatch
                                           ? "bg-[var(--danger-bg)] text-[var(--danger)] font-medium"
                                           : "text-[var(--text)]"
@@ -680,10 +680,10 @@ ${activeResult.citations
                                   );
                                 },
                                 blockquote: ({ node, ...props }) => (
-                                  <blockquote className="border-l-2 border-[var(--border)] pl-3 py-1 my-2 text-xs italic text-[var(--text-muted)] bg-[var(--surface-raised)] rounded-r" {...props} />
+                                  <blockquote className="border-l-2 border-[var(--border)] pl-3 py-1 my-2 text-sm italic text-[var(--text-muted)] bg-[var(--surface-raised)] rounded-r" {...props} />
                                 ),
                                 code: ({ node, className, children, ...props }) => (
-                                  <code className="px-1.5 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text)] font-mono text-xs border border-[var(--border-subtle)]" {...props}>
+                                  <code className="px-1.5 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text)] font-mono text-[13px] border border-[var(--border-subtle)]" {...props}>
                                     {children}
                                   </code>
                                 )
@@ -708,15 +708,15 @@ ${activeResult.citations
                                     <AlertTriangle className="w-4 h-4" />
                                   </div>
                                   <div>
-                                    <p className="text-xs font-medium text-[var(--text)]">
+                                    <p className="text-sm font-medium text-[var(--text)]">
                                       {countLabel}
                                     </p>
-                                    <p className="text-xs text-[var(--text-muted)]">
+                                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                                       {subtitle}
                                     </p>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1 text-xs text-[var(--accent)] font-medium">
+                                <div className="flex items-center gap-1 text-sm text-[var(--accent)] font-medium">
                                   <span>Inspect</span>
                                   <ChevronRight className="w-3.5 h-3.5" />
                                 </div>
@@ -727,7 +727,7 @@ ${activeResult.citations
                           {/* Deduplicated Source Citations */}
                           {msg.result && msg.result.citations.length > 0 && (
                             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              <span className="text-xs text-[var(--text-muted)] mr-1">
+                              <span className="text-sm text-[var(--text-muted)] mr-1">
                                 Sources:
                               </span>
                               {Array.from(
@@ -742,7 +742,7 @@ ${activeResult.citations
                                     setArtifactOpen(true);
                                     setArtifactTab("sources");
                                   }}
-                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[var(--surface-raised)] border border-[var(--border)] hover:border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition cursor-pointer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[var(--surface-raised)] border border-[var(--border)] hover:border-[var(--border-subtle)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text)] transition cursor-pointer"
                                 >
                                   <FileText className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                                   <span>{cite.doc_name}</span>
@@ -763,7 +763,7 @@ ${activeResult.citations
                     <div className="w-7 h-7 rounded-md bg-[var(--surface-raised)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] flex-shrink-0 mt-0.5 animate-pulse">
                       <Sparkles className="w-4 h-4 text-[var(--text-muted)]" />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] pt-1">
+                    <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] pt-1">
                       <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-ping" />
                       <span>Investigating cross-document consensus, citations, and conflicts...</span>
                     </div>
@@ -775,7 +775,7 @@ ${activeResult.citations
 
             {/* Error Notice */}
             {error && (
-              <div className="mt-3 p-3 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger)]/30 text-[var(--danger)] text-xs flex items-center justify-between">
+              <div className="mt-3 p-3 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger)]/30 text-[var(--danger)] text-sm flex items-center justify-between">
                 <span>{error}</span>
                 <button onClick={() => setError(null)} className="text-[var(--danger)] hover:text-[var(--text)]">✕</button>
               </div>
@@ -789,12 +789,12 @@ ${activeResult.citations
             <div className="bg-[var(--surface-raised)] border border-[var(--border)] focus-within:border-[var(--accent)] rounded-lg px-3 py-2 transition">
               {/* Active Document Indicator */}
               {documents.length > 0 && (
-                <div className="flex items-center gap-1.5 pb-1.5 text-xs text-[var(--text-muted)] border-b border-[var(--border-subtle)] mb-1.5">
+                <div className="flex items-center gap-1.5 pb-1.5 text-sm text-[var(--text-muted)] border-b border-[var(--border-subtle)] mb-1.5">
                   <Layers className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                   <span>{documents.length} {documents.length === 1 ? "document" : "documents"} loaded:</span>
                   <div className="flex items-center gap-1 overflow-hidden truncate">
                     {documents.slice(0, 3).map((d) => (
-                      <span key={d.id} className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-xs">
+                      <span key={d.id} className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-[13px]">
                         {d.filename}
                       </span>
                     ))}
@@ -822,7 +822,7 @@ ${activeResult.citations
                       ? "Load demo case or add documents to start investigating..."
                       : "Ask docV.ai to audit, compare, or uncover conflicts..."
                   }
-                  className="flex-1 bg-transparent border-0 text-sm text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none resize-none max-h-24 min-h-[32px] py-1 leading-relaxed"
+                  className="flex-1 bg-transparent border-0 text-[15px] text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none resize-none max-h-24 min-h-[32px] py-1 leading-relaxed"
                 />
 
                 <button
@@ -849,7 +849,7 @@ ${activeResult.citations
                 <ShieldCheck className="w-4 h-4 text-[var(--text)]" />
               </div>
               <div>
-                <h3 className="text-xs font-semibold text-[var(--text)]">Findings</h3>
+                <h3 className="text-sm font-semibold text-[var(--text)]">Findings</h3>
               </div>
             </div>
 
@@ -872,7 +872,7 @@ ${activeResult.citations
           </div>
 
           {/* Findings Tabs */}
-          <div className="flex border-b border-[var(--border-subtle)] bg-[var(--surface)] px-3 pt-2 gap-1 text-xs overflow-x-auto">
+          <div className="flex border-b border-[var(--border-subtle)] bg-[var(--surface)] px-3 pt-2 gap-1 text-[13px] overflow-x-auto">
             <button
               onClick={() => setArtifactTab("conflicts")}
               className={`pb-2 px-2.5 font-medium transition cursor-pointer border-b-2 flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
@@ -916,7 +916,7 @@ ${activeResult.citations
             {artifactTab === "conflicts" && (
               <div className="space-y-3.5">
                 {activeResult.conflicts_detected.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-[var(--text-muted)] border border-dashed border-[var(--border)] rounded-lg">
+                  <div className="p-6 text-center text-sm text-[var(--text-muted)] border border-dashed border-[var(--border)] rounded-lg">
                     <CheckCircle2 className="w-5 h-5 text-[var(--success)] mx-auto mb-2" />
                     No cross-document contradictions detected.
                   </div>
@@ -930,9 +930,9 @@ ${activeResult.citations
                         className="border-b border-[var(--border)] pb-4 pt-1 space-y-2.5 last:border-b-0"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-xs text-[var(--text)]">{item.topic}</span>
+                          <span className="font-semibold text-sm text-[var(--text)]">{item.topic}</span>
                           <span
-                            className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
+                            className={`text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
                               item.severity === "HIGH"
                                 ? "bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger)]/30"
                                 : "bg-amber-500/10 text-amber-300 border border-amber-500/20"
@@ -943,28 +943,28 @@ ${activeResult.citations
                         </div>
 
                         {/* Clean claim comparison with highlighted values */}
-                        <div className="space-y-2 text-xs">
+                        <div className="space-y-2 text-sm">
                           <div className="border-l-2 border-[var(--border)] pl-2.5 py-0.5 space-y-0.5">
-                            <span className="text-xs text-[var(--text-muted)] font-medium block truncate">
+                            <span className="text-[13px] text-[var(--text-muted)] font-medium block truncate">
                               {item.document_a}
                             </span>
-                            <p className="text-xs text-[var(--text)] font-mono leading-relaxed">
+                            <p className="text-[13px] text-[var(--text)] font-mono leading-relaxed">
                               "{highlightQuoteValues(item.claim_a, itemValues)}"
                             </p>
                           </div>
 
                           <div className="border-l-2 border-[var(--border)] pl-2.5 py-0.5 space-y-0.5">
-                            <span className="text-xs text-[var(--text-muted)] font-medium block truncate">
+                            <span className="text-[13px] text-[var(--text-muted)] font-medium block truncate">
                               {item.document_b}
                             </span>
-                            <p className="text-xs text-[var(--text)] font-mono leading-relaxed">
+                            <p className="text-[13px] text-[var(--text)] font-mono leading-relaxed">
                               "{highlightQuoteValues(item.claim_b, itemValues)}"
                             </p>
                           </div>
                         </div>
 
                         {/* Resolution Note with Markdown Rendering */}
-                        <div className="text-xs text-[var(--text-muted)] leading-relaxed pt-1.5 border-t border-[var(--border-subtle)]">
+                        <div className="text-[13.5px] text-[var(--text-muted)] leading-relaxed pt-1.5 border-t border-[var(--border-subtle)]">
                           <span className="text-[var(--text)] font-medium mr-1">Resolution:</span>
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
@@ -973,7 +973,7 @@ ${activeResult.citations
                               strong: ({ node, ...p }) => <strong className="font-semibold text-[var(--text)]" {...p} />,
                               em: ({ node, ...p }) => <em className="italic text-[var(--text)]" {...p} />,
                               code: ({ node, ...p }) => (
-                                <code className="px-1 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text)] font-mono text-[11px]" {...p} />
+                                <code className="px-1 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text)] font-mono text-xs" {...p} />
                               )
                             }}
                           >
@@ -991,9 +991,9 @@ ${activeResult.citations
             {artifactTab === "uncertainty" && (
               <div className="space-y-4">
                 <div className="p-3.5 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-[var(--text-muted)]">Grounding Score</span>
-                    <span className="font-semibold text-[var(--text)] text-sm">{activeResult.confidence_score}%</span>
+                    <span className="font-bold text-[var(--text)] text-base">{activeResult.confidence_score}%</span>
                   </div>
                   <div className="w-full bg-[var(--surface)] h-1.5 rounded-full overflow-hidden">
                     <div
@@ -1001,18 +1001,18 @@ ${activeResult.citations
                       style={{ width: `${activeResult.confidence_score}%` }}
                     />
                   </div>
-                  <div className="text-xs text-[var(--text-muted)] flex justify-between">
+                  <div className="text-sm text-[var(--text-muted)] flex justify-between">
                     <span>Uncertainty Level:</span>
                     <span className="font-semibold text-[var(--text)]">{activeResult.uncertainty_level}</span>
                   </div>
                 </div>
 
                 <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] space-y-2">
-                  <h4 className="text-xs font-semibold text-[var(--text)] flex items-center gap-1.5">
+                  <h4 className="text-sm font-semibold text-[var(--text)] flex items-center gap-1.5">
                     <HelpCircle className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                     Factors & Caveats
                   </h4>
-                  <ul className="text-xs text-[var(--text-muted)] space-y-1.5 list-disc list-inside">
+                  <ul className="text-[13.5px] text-[var(--text-muted)] space-y-2 list-disc list-inside">
                     {activeResult.uncertainty_reasons.map((reason, i) => (
                       <li key={i} className="leading-relaxed">
                         <ReactMarkdown
@@ -1021,7 +1021,7 @@ ${activeResult.citations
                             p: ({ node, ...p }) => <span {...p} />,
                             strong: ({ node, ...p }) => <strong className="font-semibold text-[var(--text)]" {...p} />,
                             em: ({ node, ...p }) => <em className="italic text-[var(--text)]" {...p} />,
-                            code: ({ node, ...p }) => <code className="px-1 py-0.5 rounded bg-[var(--surface)] font-mono text-[11px]" {...p} />
+                            code: ({ node, ...p }) => <code className="px-1 py-0.5 rounded bg-[var(--surface)] font-mono text-xs" {...p} />
                           }}
                         >
                           {reason}
@@ -1035,21 +1035,21 @@ ${activeResult.citations
 
             {/* Tab 3: Verbatim Source Excerpts */}
             {artifactTab === "sources" && (
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 {(() => {
                   const allConflictValues = getAllConflictValues(activeResult.conflicts_detected);
                   return activeResult.citations.map((cite, i) => (
                     <div
                       key={i}
-                      className="border-b border-[var(--border)] pb-3 pt-1 space-y-1.5 last:border-b-0 text-xs"
+                      className="border-b border-[var(--border)] pb-3.5 pt-1 space-y-1.5 last:border-b-0 text-sm"
                     >
-                      <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center justify-between text-sm">
                         <span className="font-medium text-[var(--text)] truncate">{cite.doc_name}</span>
                         <span className="text-xs text-[var(--text-muted)]">
                           Page {cite.page_number}
                         </span>
                       </div>
-                      <p className="text-xs text-[var(--text-muted)] font-mono bg-[var(--surface-raised)] p-2.5 rounded border border-[var(--border-subtle)] leading-relaxed">
+                      <p className="text-[13px] text-[var(--text-muted)] font-mono bg-[var(--surface-raised)] p-3 rounded border border-[var(--border-subtle)] leading-relaxed">
                         "{highlightQuoteValues(cite.quote, allConflictValues)}"
                       </p>
                     </div>

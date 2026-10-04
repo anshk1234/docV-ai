@@ -20,6 +20,8 @@ body {
   color: var(--text);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   letter-spacing: -0.01em;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 /* Custom subtle scrollbar */
