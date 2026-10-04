@@ -1,6 +1,11 @@
+<div align="center">
+
+<img src="./assets/logo.png" alt="docV.ai Logo" width="120" height="120" />
+
 # docV.ai
 
-Intelligent document investigation and cross-document contradiction detection platform for ALGOTHON 26 (Problem Statement ALG-AI-02).
+**Intelligent Document Investigator & Cross-Document Contradiction Engine**  
+ALGOTHON 26 Official Problem Statement ID: `ALG-AI-02` (AI / ML Track)
 
 [Live Demo](https://docv-ai.vercel.app)
 
@@ -10,7 +15,11 @@ Intelligent document investigation and cross-document contradiction detection pl
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-![docV.ai Interface](assets/demo-investigation.png)
+<br/><br/>
+
+[![docV.ai Interface](./assets/demo-investigation.png)](https://docv-ai.vercel.app)
+
+</div>
 
 ## What It Does
 
@@ -31,11 +40,38 @@ Information in organizations is frequently dispersed across digital PDFs, scanne
 ## Architecture
 
 ```mermaid
-flowchart LR
-    Ingest["Ingestion (pypdf, Vision, Text)"] --> Index["Page Chunking & BM25 Index"]
-    Index --> Retrieval["Top-K Passage Retrieval"]
-    Retrieval --> Reasoning["Structured Reasoning Engine"]
-    Reasoning --> Output["Answers, Citations & Conflict Dossier"]
+flowchart TD
+    subgraph Ingestion ["1. Multi-Format Ingestion"]
+        PDF["Digital PDFs (pypdf)"]
+        IMG["Scanned Images (Vision API)"]
+        TXT["Plain Text & Markdown"]
+    end
+    subgraph Indexing ["2. Page-Aware Indexing & Retrieval"]
+        Chunker["Page Chunker (400 words)"]
+        BM25["BM25Okapi Lexical Index"]
+        Retriever["Top-K Relevant Passages"]
+        Chunker --> BM25 --> Retriever
+    end
+    subgraph Resilience ["3. Resilience Layer"]
+        Pool["API Key Rotation"]
+        Cascade["Multi-Model Fallback Cascade"]
+        Pool --> Cascade
+    end
+    subgraph Reasoning ["4. Multi-Document Verification"]
+        Synthesizer["Grounded Synthesis & Citations"]
+        Conflict["Cross-Document Conflict Validator"]
+        Uncertainty["Confidence & Caveat Evaluator"]
+    end
+    subgraph Interface ["5. User Interface"]
+        Chat["Conversation Stream"]
+        Findings["Findings & Contradiction Dossier"]
+    end
+    Ingestion --> Chunker
+    Retriever --> Reasoning
+    Cascade --> Reasoning
+    Synthesizer --> Chat
+    Conflict --> Findings
+    Uncertainty --> Findings
 ```
 
 ### Key Technical Decisions
@@ -66,28 +102,19 @@ flowchart LR
 
 ## Known Limitations and Future Improvements
 
-### Limitations
 - Lexical retrieval: BM25 depends on keyword overlap; queries with complex semantic paraphrasing and no shared terms may retrieve suboptimal excerpts.
 - Vision OCR dependence: Scanned document text extraction requires external model vision API availability.
 - In-memory index: Document storage and the BM25 index reside in memory and local file cache, resetting when the server instance restarts.
 - Single-turn queries: Context is evaluated per investigation query rather than multi-turn conversational history.
 - Grounding estimation: Confidence scores are estimated via model reasoning evaluation rather than formal mathematical proof.
 
-### Future Work
-- Dense vector embeddings alongside BM25 for hybrid semantic and keyword retrieval.
-- Persistent database storage (PostgreSQL/pgvector) for document archives across server restarts.
-- Automated table parsing and structured financial spreadsheet comparison.
-- Batch export of multi-document audit reports in PDF format.
+Future work includes dense vector embeddings for hybrid retrieval, persistent database storage (PostgreSQL/pgvector), automated table parsing, and batch PDF report exports.
 
 ## Setup
 
-### Prerequisites
-- Node.js 18+
-- Python 3.10+
-- Google Gemini API key
+Prerequisites: Node.js 18+, Python 3.10+, Google Gemini API key.
 
-### Quick Start
-Windows batch launcher:
+Quick start (Windows):
 ```bat
 run_dev.bat
 ```
@@ -95,20 +122,13 @@ run_dev.bat
 Manual setup:
 ```bash
 # Backend
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+cd backend && python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt && uvicorn main:app --reload --port 8000
 
-# Frontend (in another terminal)
-cd frontend
-npm install
-npm run dev
+# Frontend
+cd frontend && npm install && npm run dev
 ```
 
-### Environment Variables
-Configure in `backend/.env`:
+Environment variables in `backend/.env`:
 - `GEMINI_API_KEY`: Primary API key.
 - `GEMINI_API_KEYS`: Optional comma-separated keys for key rotation.
 
