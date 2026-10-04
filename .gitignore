@@ -52,7 +52,8 @@ frontend/out/
 *.tsbuildinfo
 next-env.d.ts.bak
 
-# 4. Local uploads & runtime logs
+# 4. Local uploads, PDFs & runtime logs
+*.pdf
 backend/uploads/*
 !backend/uploads/.gitkeep
 *.log
