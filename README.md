@@ -1,14 +1,17 @@
 <div align="center">
 
-# 🛡️ docV.ai
+<img src="./assets/logo.png" alt="docV.ai Logo" width="130" height="130" />
+
+# docV.ai
 ### Intelligent Document Investigator & Forensic Discrepancy Engine
 
 **ALGOTHON '26 Official Problem Statement ID:** `ALG-AI-02` (AI / ML Track)  
 *Built for forensic auditors, legal investigators, and compliance teams.*
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2015-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![Live App](https://img.shields.io/badge/Demo-docv--ai.vercel.app-cc785c?style=for-the-badge&logo=vercel&logoColor=white)](https://docv-ai.vercel.app)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Google Gemini](https://img.shields.io/badge/AI-Gemini%20Flash%20Cascade-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
+[![Google Gemini](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Python](https://img.shields.io/badge/Language-Python%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)

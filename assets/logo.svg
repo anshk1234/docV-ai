@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1e1b"/>
+      <stop offset="100%" stop-color="#111110"/>
+    </linearGradient>
+
+    <!-- Warm Amber Glow -->
+    <radialGradient id="ambientGlow" cx="50%" cy="46%" r="52%">
+      <stop offset="0%" stop-color="#cc785c" stop-opacity="0.32"/>
+      <stop offset="55%" stop-color="#cc785c" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#cc785c" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Document Surface Gradient -->
+    <linearGradient id="docGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a2925"/>
+      <stop offset="100%" stop-color="#1a1917"/>
+    </linearGradient>
+
+    <!-- Fold Flap Gradient -->
+    <linearGradient id="foldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3d3c36"/>
+      <stop offset="100%" stop-color="#262521"/>
+    </linearGradient>
+
+    <!-- Forensic "V" Emblem Gradient -->
+    <linearGradient id="vGrad" x1="15%" y1="20%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#f29979"/>
+      <stop offset="45%" stop-color="#cc785c"/>
+      <stop offset="100%" stop-color="#b05b41"/>
+    </linearGradient>
+
+    <!-- Gold Sparkle Gradient -->
+    <linearGradient id="sparkleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#ffd5b8"/>
+      <stop offset="100%" stop-color="#cc785c"/>
+    </linearGradient>
+
+    <!-- Subtle Drop Shadow -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    
+    <filter id="vGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#cc785c" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- 1. Squircle App Icon Base -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad)" stroke="#33322d" stroke-width="6"/>
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#ambientGlow)"/>
+
+  <!-- 2. Back Secondary Page (Stack Effect) -->
+  <rect x="175" y="95" width="200" height="270" rx="14" fill="#201f1c" stroke="#2e2d28" stroke-width="3" transform="rotate(6 275 230)"/>
+
+  <!-- 3. Primary Investigation Document -->
+  <g filter="url(#shadow)">
+    <!-- Main document shape with top-right fold cut -->
+    <path d="M 148 108 
+             C 148 97, 157 88, 168 88 
+             L 300 88 
+             L 364 152 
+             L 364 394 
+             C 364 405, 355 414, 344 414 
+             L 168 414 
+             C 157 414, 148 405, 148 394 
+             Z" 
+          fill="url(#docGrad)" 
+          stroke="#3d3c36" 
+          stroke-width="3.5"/>
+
+    <!-- Document Corner Fold -->
+    <path d="M 300 88 
+             L 300 142 
+             C 300 148, 306 152, 312 152 
+             L 364 152 
+             Z" 
+          fill="url(#foldGrad)" 
+          stroke="#3d3c36" 
+          stroke-width="2.5"/>
+
+    <!-- Document Content Skeleton Lines -->
+    <rect x="182" y="145" width="90" height="7" rx="3.5" fill="#42413a" opacity="0.8"/>
+    <rect x="182" y="168" width="145" height="6" rx="3" fill="#36352f" opacity="0.7"/>
+    <rect x="182" y="188" width="125" height="6" rx="3" fill="#36352f" opacity="0.7"/>
+    <rect x="182" y="208" width="138" height="6" rx="3" fill="#36352f" opacity="0.5"/>
+  </g>
+
+  <!-- 4. Forensic 'V' Verification Shield Checkmark -->
+  <g filter="url(#vGlow)">
+    <path d="M 194 278 
+             L 246 348 
+             C 250 353, 258 353, 263 348 
+             L 348 226 
+             C 353 219, 349 210, 340 210 
+             L 316 210 
+             C 311 210, 307 213, 304 217 
+             L 253 294 
+             L 224 256 
+             C 220 251, 212 251, 207 256 
+             L 196 267 
+             C 192 270, 191 275, 194 278 
+             Z" 
+          fill="url(#vGrad)"/>
+  </g>
+
+  <!-- 5. AI Sparkle Cross (Top-Right of Document) -->
+  <g transform="translate(378, 120)">
+    <!-- Sparkle Outer Glow -->
+    <circle cx="0" cy="0" r="28" fill="#cc785c" opacity="0.25"/>
+    <!-- 4-pointed Star -->
+    <path d="M 0 -34 
+             Q 0 0 -34 0 
+             Q 0 0 0 34 
+             Q 0 0 34 0 
+             Q 0 0 0 -34 
+             Z" 
+          fill="url(#sparkleGrad)"/>
+    <!-- Center Core Dot -->
+    <circle cx="0" cy="0" r="4.5" fill="#ffffff"/>
+  </g>
+
+  <!-- 6. Secondary Micro Sparkle (Bottom-Left) -->
+  <g transform="translate(136, 350) scale(0.48)">
+    <circle cx="0" cy="0" r="20" fill="#cc785c" opacity="0.3"/>
+    <path d="M 0 -30 Q 0 0 -30 0 Q 0 0 0 30 Q 0 0 30 0 Q 0 0 0 -30 Z" fill="url(#sparkleGrad)"/>
+  </g>
+</svg>
