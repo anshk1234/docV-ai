@@ -175,6 +175,29 @@ docV-ai/
 └── LICENSE                  # MIT License
 ```
 
+## Testing
+
+Visual verification of platform test runs across backend API endpoints, frontend compilation, launcher orchestration, and end-to-end multi-document contradiction workflows:
+
+<p align="center">
+  <img src="./assets/test-e2e-investigation.png" alt="End-to-End Investigation Test" width="100%" />
+</p>
+
+*End-to-end investigation Q&A run on localhost:3000 showing 1 discrepancy, 90% grounding, and 3 citations.*
+
+<p align="center">
+  <img src="./assets/test-backend-health.png" alt="FastAPI Backend Health Checks" width="49%" />
+  <img src="./assets/test-frontend-build.png" alt="Next.js Turbopack Performance" width="49%" />
+</p>
+
+*Backend API health and reset logs (left) and Next.js Turbopack compilation response times (right).*
+
+<p align="center">
+  <img src="./assets/test-batch-startup.png" alt="Local Development Launcher Test" width="100%" />
+</p>
+
+*Dual-server startup execution via Windows run_dev.bat.*
+
 ## License
 
 MIT License.
