@@ -92,12 +92,11 @@ class SessionState:
                 print(f"[STORE][{self.session_id}] Failed to load store: {e}")
         return False
 
-    def init_sample_case(self):
-        self.documents.clear()
-        self.index.clear()
+    def init_sample_case(self) -> int:
+        self.reset()
         sample_dir = get_sample_documents_dir()
         if not os.path.exists(sample_dir):
-            return
+            return 0
 
         for fname in sorted(os.listdir(sample_dir)):
             if not fname.endswith((".txt", ".md", ".pdf", ".png", ".jpg", ".jpeg")):
@@ -112,6 +111,7 @@ class SessionState:
             self.documents[doc.id] = doc
             self.index.add_document_pages(doc.pages)
         self.save_store()
+        return len(self.documents)
 
     def reset(self):
         self.documents.clear()
@@ -359,7 +359,12 @@ def load_sample_case(session_id: str = Depends(get_session_id)):
     for an immediate 1-click live demonstration for hackathon judges!
     """
     session = get_session(session_id)
-    session.init_sample_case()
+    loaded_count = session.init_sample_case()
+    if loaded_count == 0:
+        raise HTTPException(
+            status_code=500,
+            detail="Sample documents are unavailable on the server. Please upload your own files."
+        )
     return {
         "status": "sample data loaded successfully",
         "documents": [doc.filename for doc in session.documents.values()],
