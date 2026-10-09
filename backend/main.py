@@ -178,6 +178,22 @@ class SessionState:
                     except Exception:
                         pass
 
+    def remove_document(self, doc_id: str) -> bool:
+        if doc_id not in self.documents:
+            return False
+        doc = self.documents.pop(doc_id)
+        self.index.clear()
+        for remaining_doc in self.documents.values():
+            self.index.add_document_pages(remaining_doc.pages)
+        file_path = os.path.join(self.upload_dir, doc.filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+        self.save_store()
+        return True
+
 SESSIONS: Dict[str, SessionState] = {}
 SESSION_TTL_SECONDS = 4 * 3600  # 4 hours TTL
 
@@ -228,6 +244,7 @@ INDEX = DEFAULT_SESSION.index
 class QueryRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
+    web_search: Optional[bool] = False
 
 class QueryResponse(BaseModel):
     status: str
@@ -262,6 +279,21 @@ def list_documents(session_id: str = Depends(get_session_id)):
         }
         for doc in session.documents.values()
     ]
+
+@router.delete("/documents/{doc_id}")
+@router.post("/documents/{doc_id}/delete")
+def delete_document(doc_id: str, session_id: str = Depends(get_session_id)):
+    session = get_session(session_id)
+    if not session.documents:
+        session.load_store()
+    success = session.remove_document(doc_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return {
+        "status": "success",
+        "deleted_id": doc_id,
+        "remaining_documents": len(session.documents)
+    }
 
 @router.post("/upload")
 async def upload_files(
@@ -311,22 +343,28 @@ async def run_investigation(
     if not session.documents:
         session.load_store()
 
-    # Fast conversational check (allows greetings/gratitude even if no documents yet)
-    conv_result = check_conversational_query(req.query, has_documents=bool(session.documents))
-    if conv_result:
-        return QueryResponse(status="success", result=conv_result)
+    # Fast conversational check (only when web_search is not explicitly enabled)
+    if not req.web_search:
+        conv_result = check_conversational_query(req.query, has_documents=bool(session.documents))
+        if conv_result:
+            return QueryResponse(status="success", result=conv_result)
 
-    if not session.documents:
+    if not session.documents and not req.web_search:
         raise HTTPException(
             status_code=400,
             detail="No documents have been uploaded yet. Please upload documents first or load sample case files."
         )
 
     # Retrieve top relevant context chunks across documents in this session only
-    top_chunks = session.index.search(req.query.strip(), top_k=8)
+    top_chunks = session.index.search(req.query.strip(), top_k=8) if session.documents else []
     all_doc_names = [doc.filename for doc in session.documents.values()]
 
-    result = investigate_query(req.query, top_chunks, all_doc_names)
+    result = investigate_query(
+        req.query,
+        top_chunks,
+        all_doc_names,
+        web_search=bool(req.web_search)
+    )
     return QueryResponse(status="success", result=result)
 
 @router.post("/reset")

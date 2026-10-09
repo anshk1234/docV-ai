@@ -31,7 +31,8 @@ import {
   Info,
   X,
   Award,
-  Star
+  Star,
+  Globe
 } from "lucide-react";
 
 interface IngestedDoc {
@@ -241,6 +242,7 @@ export default function Home() {
   const [artifactTab, setArtifactTab] = useState<"conflicts" | "sources" | "uncertainty">("conflicts");
   const [error, setError] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   // Close info modal on Escape key
   useEffect(() => {
@@ -364,6 +366,26 @@ export default function Home() {
     }
   };
 
+  // Remove single document
+  const handleRemoveDocument = async (docId: string) => {
+    const sid = sessionId || getClientSessionId();
+    try {
+      const res = await fetch(`${apiUrl}/api/documents/${docId}`, {
+        method: "DELETE",
+        headers: { "X-Session-ID": sid },
+      });
+      if (!res.ok) {
+        await fetch(`${apiUrl}/api/documents/${docId}/delete`, {
+          method: "POST",
+          headers: { "X-Session-ID": sid },
+        });
+      }
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err: any) {
+      console.error("Failed to remove document:", err);
+    }
+  };
+
   // Load sample dataset
   const handleLoadSample = async () => {
     setLoading(true);
@@ -437,7 +459,11 @@ export default function Home() {
           "Content-Type": "application/json",
           "X-Session-ID": sid,
         },
-        body: JSON.stringify({ query: q, session_id: sid }),
+        body: JSON.stringify({
+          query: q,
+          session_id: sid,
+          web_search: webSearchEnabled,
+        }),
       });
 
       if (!res.ok) {
@@ -473,47 +499,200 @@ export default function Home() {
     }
   };
 
-  // Export report as markdown
+function stringToUint8Array(str: string): Uint8Array {
+  const buf = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    buf[i] = str.charCodeAt(i) & 0xff;
+  }
+  return buf;
+}
+
+function generateReportPdf(result: InvestigationResult): Uint8Array {
+  const pages: string[] = [];
+  let currentCommands: string[] = [];
+  let y = 780;
+  const margin = 50;
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const bottomMargin = 50;
+
+  function newPage() {
+    if (currentCommands.length > 0) {
+      pages.push(currentCommands.join("\n"));
+    }
+    currentCommands = [];
+    y = 780;
+  }
+
+  function escapePdfText(text: string): string {
+    if (!text) return "";
+    return text
+      .replace(/\\/g, "\\\\")
+      .replace(/\(/g, "\\(")
+      .replace(/\)/g, "\\)")
+      .replace(/[^\x20-\x7E\t]/g, " ");
+  }
+
+  function addText(text: string, font: string, size: number, lineGap: number = 14, color: [number, number, number] = [0.1, 0.1, 0.1]) {
+    if (y < bottomMargin + lineGap) {
+      newPage();
+    }
+    const escaped = escapePdfText(text);
+    const r = color[0].toFixed(2);
+    const g = color[1].toFixed(2);
+    const b = color[2].toFixed(2);
+    currentCommands.push(
+      "BT",
+      `/${font} ${size} Tf`,
+      `${r} ${g} ${b} rg`,
+      `1 0 0 1 ${margin} ${y} Tm`,
+      `(${escaped}) Tj`,
+      "ET"
+    );
+    y -= lineGap;
+  }
+
+  function wrapText(text: string, maxChars: number = 75): string[] {
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let currentLine = "";
+    for (const w of words) {
+      if ((currentLine + " " + w).trim().length <= maxChars) {
+        currentLine = (currentLine + " " + w).trim();
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = w;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    return lines;
+  }
+
+  function addParagraph(text: string, font: string = "F1", size: number = 10, lineGap: number = 13, maxChars: number = 80, color: [number, number, number] = [0.15, 0.15, 0.15]) {
+    const lines = wrapText(text, maxChars);
+    for (const l of lines) {
+      addText(l, font, size, lineGap, color);
+    }
+  }
+
+  function addSectionHeader(title: string) {
+    y -= 8;
+    if (y < bottomMargin + 40) newPage();
+    addText(title, "F2", 12, 15, [0.8, 0.35, 0.15]);
+    currentCommands.push(
+      "0.8 0.8 0.8 RG",
+      "0.5 w",
+      `${margin} ${y + 4} m ${pageWidth - margin} ${y + 4} l S`
+    );
+    y -= 8;
+  }
+
+  // Header banner
+  addText("docV.ai - Intelligent Document Investigation Report", "F2", 16, 20, [0.1, 0.1, 0.1]);
+  addText(`Generated: ${new Date().toLocaleString()} | Problem Statement: ALG-AI-02`, "F1", 9, 14, [0.4, 0.4, 0.4]);
+  y -= 4;
+
+  // Query Box
+  addText("INVESTIGATION QUERY", "F2", 9, 12, [0.8, 0.35, 0.15]);
+  addParagraph(`"${result.query}"`, "F2", 10, 14, 75, [0.05, 0.05, 0.05]);
+  y -= 6;
+
+  // 1. Synthesized Answer
+  addSectionHeader("1. Grounded Synthesis");
+  addParagraph(result.synthesized_answer, "F1", 10, 14, 80);
+
+  // 2. Grounding & Epistemic Uncertainty
+  addSectionHeader("2. Grounding & Uncertainty Metrics");
+  addText(`Grounding Confidence: ${result.confidence_score}%  |  Uncertainty Level: ${result.uncertainty_level.toUpperCase()}`, "F2", 10, 15, [0.2, 0.2, 0.2]);
+  if (result.uncertainty_reasons && result.uncertainty_reasons.length > 0) {
+    addText("Identified Factors & Caveats:", "F2", 9, 13, [0.3, 0.3, 0.3]);
+    for (const reason of result.uncertainty_reasons) {
+      addParagraph(`- ${reason}`, "F1", 9, 12, 80, [0.3, 0.3, 0.3]);
+    }
+  }
+
+  // 3. Discrepancies
+  const conflicts = result.conflicts_detected || [];
+  addSectionHeader(`3. Cross-Document Discrepancies (${conflicts.length} Detected)`);
+  if (conflicts.length === 0) {
+    addText("No cross-document discrepancies detected. Source documents are mutually consistent.", "F1", 10, 14);
+  } else {
+    conflicts.forEach((c, idx) => {
+      addText(`Discrepancy #${idx + 1}: ${c.topic} [Severity: ${c.severity.toUpperCase()}]`, "F2", 10, 14, [0.75, 0.25, 0.1]);
+      addParagraph(`Source A (${c.document_a}): "${c.claim_a}"`, "F1", 9, 12, 80, [0.2, 0.2, 0.2]);
+      addParagraph(`Source B (${c.document_b}): "${c.claim_b}"`, "F1", 9, 12, 80, [0.2, 0.2, 0.2]);
+      addParagraph(`Resolution: ${c.resolution_note}`, "F1", 9, 13, 80, [0.35, 0.35, 0.35]);
+      y -= 4;
+    });
+  }
+
+  // 4. Citations
+  const citations = result.citations || [];
+  addSectionHeader(`4. Verifiable Citations (${citations.length} Sources)`);
+  citations.forEach((cite, idx) => {
+    addText(`[${idx + 1}] ${cite.doc_name} (Page ${cite.page_number})`, "F2", 9, 12, [0.15, 0.35, 0.65]);
+    addParagraph(`"${cite.quote}"`, "F1", 9, 12, 82, [0.3, 0.3, 0.3]);
+    y -= 2;
+  });
+
+  if (currentCommands.length > 0) {
+    pages.push(currentCommands.join("\n"));
+  }
+
+  // Assemble PDF document objects
+  const objects: string[] = [];
+  objects.push("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj");
+  objects.push("3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj");
+  objects.push("4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj");
+
+  const pageObjStart = 5;
+  const pageRefs: string[] = [];
+  for (let i = 0; i < pages.length; i++) {
+    const pageObjId = pageObjStart + i * 2;
+    pageRefs.push(`${pageObjId} 0 R`);
+  }
+
+  objects.splice(1, 0, `2 0 obj\n<< /Type /Pages /Kids [${pageRefs.join(" ")}] /Count ${pages.length} >>\nendobj`);
+
+  for (let i = 0; i < pages.length; i++) {
+    const pageObjId = pageObjStart + i * 2;
+    const contentObjId = pageObjId + 1;
+    const contentStream = pages[i];
+    const streamLen = contentStream.length;
+    objects.push(
+      `${pageObjId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjId} 0 R >>\nendobj`
+    );
+    objects.push(
+      `${contentObjId} 0 obj\n<< /Length ${streamLen} >>\nstream\n${contentStream}\nendstream\nendobj`
+    );
+  }
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  for (let i = 0; i < objects.length; i++) {
+    offsets.push(pdf.length);
+    pdf += objects[i] + "\n";
+  }
+
+  const startXref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const off of offsets) {
+    pdf += ("" + off).padStart(10, "0") + " 00000 n \n";
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${startXref}\n%%EOF`;
+
+  return stringToUint8Array(pdf);
+}
+
+  // Export report as PDF (Only PDF)
   const handleExportReport = () => {
     if (!activeResult) return;
-    const report = `# docV.ai — Investigation Report
-Generated: ${new Date().toLocaleString()}
-Query: "${activeResult.query}"
-
----
-
-## 1. Synthesis
-${activeResult.synthesized_answer}
-
-## 2. Grounding & Uncertainty
-- **Grounding Score:** ${activeResult.confidence_score}%
-- **Uncertainty Level:** ${activeResult.uncertainty_level}
-- **Factors & Caveats:**
-${activeResult.uncertainty_reasons.map((r) => `  * ${r}`).join("\n")}
-
-## 3. Discrepancies (${activeResult.conflicts_detected.length} Detected)
-${activeResult.conflicts_detected
-  .map(
-    (c, i) => `
-### Discrepancy ${i + 1}: ${c.topic} [Severity: ${c.severity}]
-- **Source A (${c.document_a}):** "${c.claim_a}"
-- **Source B (${c.document_b}):** "${c.claim_b}"
-- **Resolution:** ${c.resolution_note}
-`
-  )
-  .join("\n")}
-
-## 4. Sources (${activeResult.citations.length})
-${activeResult.citations
-  .map((cite) => `- **${cite.doc_name} (Page ${cite.page_number})**: "${cite.quote}"`)
-  .join("\n")}
-`;
-
-    const blob = new Blob([report], { type: "text/markdown" });
+    const pdfBytes = generateReportPdf(activeResult);
+    const blob = new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `docV_Investigation_${Date.now()}.md`;
+    a.download = `docV_Investigation_${Date.now()}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -602,9 +781,9 @@ ${activeResult.citations
               documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="p-2.5 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] transition flex items-center justify-between text-sm"
+                  className="p-2.5 rounded-lg bg-[var(--surface-raised)] border border-[var(--border)] transition flex items-center justify-between text-sm group"
                 >
-                  <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="flex items-center gap-2 overflow-hidden min-w-0 pr-1">
                     <FileText className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
                     <div className="overflow-hidden">
                       <p className="text-sm text-[var(--text)] truncate font-medium">{doc.filename}</p>
@@ -613,6 +792,17 @@ ${activeResult.citations
                       </p>
                     </div>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveDocument(doc.id);
+                    }}
+                    className="p-1 text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--surface)] rounded transition cursor-pointer flex-shrink-0"
+                    title={`Remove ${doc.filename}`}
+                    aria-label={`Remove ${doc.filename}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))
             )}
@@ -877,9 +1067,15 @@ ${activeResult.citations
                                   }}
                                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[var(--surface-raised)] border border-[var(--border)] hover:border-[var(--border-subtle)] text-[13px] text-[var(--text-muted)] hover:text-[var(--text)] transition cursor-pointer"
                                 >
-                                  <FileText className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                                  <span>{cite.doc_name}</span>
-                                  <span className="text-[var(--text-muted)]/70">p.{cite.page_number}</span>
+                                  {cite.doc_name.toLowerCase().includes("web") ? (
+                                    <Globe className="w-3.5 h-3.5 text-[var(--accent)]" />
+                                  ) : (
+                                    <FileText className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                                  )}
+                                  <span className="truncate max-w-[220px]">{cite.doc_name}</span>
+                                  {!cite.doc_name.toLowerCase().includes("web") && (
+                                    <span className="text-[var(--text-muted)]/70">p.{cite.page_number}</span>
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -948,29 +1144,39 @@ ${activeResult.citations
 
             {/* Floating Input Container */}
             <div className="w-full bg-[var(--surface-raised)] border border-[var(--border)] focus-within:border-[var(--accent)]/50 rounded-[24px] px-3.5 py-2 shadow-md shadow-black/20 transition-colors pointer-events-auto">
-              {/* Row 1: Subtle Document Chips */}
-              {documents.length > 0 && (
-                <div className="flex items-center gap-1.5 px-1 pt-0.5 pb-1 text-xs text-[var(--text-muted)]">
-                  <Layers className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
-                  <span className="font-normal text-[12px]">{documents.length} {documents.length === 1 ? "document" : "documents"} loaded:</span>
-                  <div className="flex items-center gap-1 overflow-x-auto truncate scrollbar-none">
-                    {documents.slice(0, 3).map((d) => (
-                      <span
-                        key={d.id}
-                        className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-[11.5px] max-w-[140px]"
-                        title={d.filename}
-                      >
-                        {d.filename}
-                      </span>
-                    ))}
-                    {documents.length > 3 && (
-                      <span className="text-[11px] text-[var(--text-muted)]">+{documents.length - 3}</span>
-                    )}
-                  </div>
+              {/* Row 1: Subtle Document Chips & Live Search Badge */}
+              {(documents.length > 0 || webSearchEnabled) && (
+                <div className="flex items-center justify-between gap-1.5 px-1 pt-0.5 pb-1 text-xs text-[var(--text-muted)]">
+                  {documents.length > 0 ? (
+                    <div className="flex items-center gap-1.5 overflow-x-auto truncate scrollbar-none">
+                      <Layers className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
+                      <span className="font-normal text-[12px]">{documents.length} {documents.length === 1 ? "document" : "documents"} loaded:</span>
+                      {documents.slice(0, 3).map((d) => (
+                        <span
+                          key={d.id}
+                          className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-[11.5px] max-w-[140px]"
+                          title={d.filename}
+                        >
+                          {d.filename}
+                        </span>
+                      ))}
+                      {documents.length > 3 && (
+                        <span className="text-[11px] text-[var(--text-muted)]">+{documents.length - 3}</span>
+                      )}
+                    </div>
+                  ) : <div />}
+
+                  {webSearchEnabled && (
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-[11px] font-medium border border-[var(--accent)]/30 flex-shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+                      <Globe className="w-3 h-3" />
+                      <span>Web Search On</span>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Row 2: Plus button, textarea, circular send button */}
+              {/* Row 2: Plus button, textarea, web search toggle, circular send button */}
               <div className="flex items-end gap-2 px-1">
                 {/* Plus button for file upload */}
                 <button
@@ -1008,23 +1214,45 @@ ${activeResult.citations
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      executeInvestigation();
+                      if (!loading && inputQuery.trim() && (documents.length > 0 || webSearchEnabled)) {
+                        executeInvestigation();
+                      }
                     }
                   }}
                   placeholder={
-                    documents.length === 0
-                      ? "Load demo case or add documents to start investigating..."
-                      : "Ask docV.ai to audit, compare, or uncover conflicts..."
+                    webSearchEnabled
+                      ? "Search the live web or cross-reference documents with live web..."
+                      : documents.length === 0
+                        ? "Load demo case or add documents to start investigating..."
+                        : "Ask docV.ai to audit, compare, or uncover conflicts..."
                   }
                   className="flex-1 bg-transparent border-0 text-[15px] text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none resize-none max-h-36 min-h-[36px] py-1.5 px-1 leading-relaxed"
                 />
 
+                {/* Web Search Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => setWebSearchEnabled((prev) => !prev)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 mb-0.5 cursor-pointer relative group ${
+                    webSearchEnabled
+                      ? "bg-[var(--accent)] text-white shadow-sm ring-2 ring-[var(--accent)]/30"
+                      : "bg-[var(--surface)] hover:bg-[#20201d] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
+                  }`}
+                  title={webSearchEnabled ? "Web Search: ON (Click to disable)" : "Web Search: OFF (Click to enable)"}
+                  aria-label="Toggle web search"
+                >
+                  <Globe className="w-4 h-4" />
+                  {webSearchEnabled && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-[var(--surface)]" />
+                  )}
+                </button>
+
                 {/* Circular Send Button */}
                 <button
                   onClick={() => executeInvestigation()}
-                  disabled={loading || !inputQuery.trim() || documents.length === 0}
+                  disabled={loading || !inputQuery.trim() || (documents.length === 0 && !webSearchEnabled)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 mb-0.5 ${
-                    !loading && inputQuery.trim() && documents.length > 0
+                    !loading && inputQuery.trim() && (documents.length > 0 || webSearchEnabled)
                       ? "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white cursor-pointer"
                       : "bg-[var(--surface)] text-[var(--text-muted)]/40 cursor-not-allowed"
                   }`}
@@ -1062,7 +1290,7 @@ ${activeResult.citations
               <button
                 onClick={handleExportReport}
                 className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] rounded-md hover:bg-[var(--surface-raised)] transition cursor-pointer"
-                title="Download Markdown Report"
+                title="Download PDF Report"
               >
                 <Download className="w-4 h-4" />
               </button>
@@ -1251,7 +1479,7 @@ ${activeResult.citations
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium text-[var(--text)] truncate">{cite.doc_name}</span>
                         <span className="text-xs text-[var(--text-muted)]">
-                          Page {cite.page_number}
+                          {cite.doc_name.toLowerCase().includes("web") ? "Web Source" : `Page ${cite.page_number}`}
                         </span>
                       </div>
                       <p className="text-[13px] text-[var(--text-muted)] font-mono bg-[var(--surface-raised)] p-3 rounded border border-[var(--border-subtle)] leading-relaxed">
