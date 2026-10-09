@@ -370,19 +370,29 @@ export default function Home() {
   const handleRemoveDocument = async (docId: string) => {
     const sid = sessionId || getClientSessionId();
     try {
+      let removed = false;
       const res = await fetch(`${apiUrl}/api/documents/${docId}`, {
         method: "DELETE",
         headers: { "X-Session-ID": sid },
       });
-      if (!res.ok) {
-        await fetch(`${apiUrl}/api/documents/${docId}/delete`, {
+      if (res.ok) {
+        removed = true;
+      } else {
+        const fallbackRes = await fetch(`${apiUrl}/api/documents/${docId}/delete`, {
           method: "POST",
           headers: { "X-Session-ID": sid },
         });
+        removed = fallbackRes.ok;
       }
+
+      if (!removed) {
+        throw new Error("Failed to remove document");
+      }
+
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
     } catch (err: any) {
       console.error("Failed to remove document:", err);
+      setError(err?.message || "Failed to remove document");
     }
   };
 
