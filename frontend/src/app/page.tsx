@@ -540,7 +540,7 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
       "BT",
       "/F2 8 Tf 0.45 0.45 0.45 rg",
       `1 0 0 1 ${margin} 806 Tm`,
-      "(docV.ai  |  FORENSIC DOCUMENT INVESTIGATION REPORT) Tj",
+      "(docV.ai  |  DOCUMENT REPORT) Tj",
       "ET",
       "0.85 0.85 0.83 RG 0.5 w",
       `${margin} 800 m ${pageWidth - margin} 800 l S`
@@ -661,7 +661,7 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
   // 1. Executive Top Header Banner (Page 1)
   addRect(margin, y - 36, contentWidth, 42, [0.14, 0.14, 0.15], undefined);
   addRect(margin, y - 36, 4, 42, [0.85, 0.35, 0.12]);
-  addTextAt(margin + 14, y - 14, "docV.ai  |  FORENSIC DOCUMENT AUDIT REPORT", "F2", 13.5, [1, 1, 1]);
+  addTextAt(margin + 14, y - 14, "docV.ai  |  DOCUMENT REPORT", "F2", 13.5, [1, 1, 1]);
   addTextAt(margin + 14, y - 28, "Cross-Document Contradiction Analysis & Grounded Evidence Synthesis", "F1", 8.5, [0.8, 0.8, 0.8]);
   addTextAt(pageWidth - margin - 110, y - 28, `Date: ${new Date().toLocaleDateString()}`, "F1", 8, [0.75, 0.75, 0.75]);
   y -= 48;
