@@ -1,7 +1,7 @@
 import os
 import re
 import json
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
@@ -145,11 +145,48 @@ def check_conversational_query(query: str, has_documents: bool = True) -> Option
 
     return None
 
-def investigate_query(query: str, relevant_chunks: List[TextChunk], all_doc_names: List[str]) -> InvestigationResult:
+def fetch_web_snippets(query: str, max_results: int = 5) -> List[Dict[str, str]]:
+    """
+    Retrieves real live web snippets using privacy-friendly search.
+    """
+    import requests
+    from html import unescape
+    url = "https://html.duckduckgo.com/html/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    try:
+        r = requests.post(url, data={"q": query}, headers=headers, timeout=6)
+        if r.status_code != 200:
+            return []
+        snippets = re.findall(r'<a class="result__snippet[^>]*>(.*?)</a>', r.text, re.DOTALL)
+        urls = re.findall(r'<a class="result__url[^>]*>(.*?)</a>', r.text, re.DOTALL)
+        results = []
+        for i, s in enumerate(snippets[:max_results]):
+            clean_snippet = unescape(re.sub(r'<[^>]+>', '', s).strip())
+            clean_url = unescape(re.sub(r'<[^>]+>', '', urls[i]).strip()) if i < len(urls) else "web"
+            if clean_snippet:
+                results.append({"url": clean_url, "snippet": clean_snippet})
+        return results
+    except Exception as e:
+        print(f"[docV.ai WebSearch] Error fetching web snippets: {e}")
+        return []
+
+def investigate_query(
+    query: str,
+    relevant_chunks: List[TextChunk],
+    all_doc_names: List[str],
+    web_search: bool = False
+) -> InvestigationResult:
     # Quick check for conversational greetings / small-talk / gratitude
-    conv_result = check_conversational_query(query, has_documents=bool(all_doc_names))
-    if conv_result:
-        return conv_result
+    if not web_search:
+        conv_result = check_conversational_query(query, has_documents=bool(all_doc_names))
+        if conv_result:
+            return conv_result
+
+    web_snippets: List[Dict[str, str]] = []
+    if web_search:
+        web_snippets = fetch_web_snippets(query)
 
     client = get_client()
     
@@ -160,7 +197,17 @@ def investigate_query(query: str, relevant_chunks: List[TextChunk], all_doc_name
             f"[SOURCE {idx+1}] File: {chunk.doc_name} | Page: {chunk.page_number}\n"
             f"Content:\n{chunk.content}\n"
         )
-    context_str = "\n".join(context_blocks)
+    context_str = "\n".join(context_blocks) if context_blocks else "No local document excerpts found."
+
+    web_context_str = ""
+    if web_search:
+        if web_snippets:
+            web_blocks = []
+            for i, ws in enumerate(web_snippets):
+                web_blocks.append(f"[WEB SOURCE {i+1}] Link: {ws['url']}\nSnippet: {ws['snippet']}\n")
+            web_context_str = "\nLIVE INTERNET WEB SEARCH RESULTS:\n" + "\n".join(web_blocks) + "\n"
+        else:
+            web_context_str = "\nLIVE INTERNET WEB SEARCH: Attempted live search for query, but no external results were returned.\n"
 
     if not POOL.keys:
         POOL.reload_keys()
@@ -188,7 +235,7 @@ def investigate_query(query: str, relevant_chunks: List[TextChunk], all_doc_name
 
     system_instruction = (
         "You are 'docV.ai', an intelligent document investigator and analyst. "
-        "Your duty is to answer questions using only the provided document sources with zero hallucinations. "
+        "Your duty is to answer questions using only the provided document sources and verified web results with zero hallucinations. "
         "\nCRITICAL FORMATTING & STRUCTURE REQUIREMENTS:\n"
         "1. DO NOT prepend your response with 'Forensic Audit:' or any generic robotic labels. Start directly with the relevant topic heading or direct answer.\n"
         "2. RICH GITHUB-FLAVORED MARKDOWN: NEVER return an unstructured plain paragraph or wall of text! Structure your synthesized_answer elegantly:\n"
@@ -209,20 +256,26 @@ def investigate_query(query: str, relevant_chunks: List[TextChunk], all_doc_name
         "6. DISTINCT TOPICS ARE NOT CONFLICTS: Comparing two different items (e.g. Milestone 1 vs. Milestone 2, or problem ALG-WEB-01 vs. ALG-WEB-02) is NOT a contradiction because they are separate entities!\n"
         "7. If no genuine cross-document contradiction exists on the same subject, return an EMPTY list for conflicts_detected.\n"
         "8. Accurately assign a confidence score (0-100) and list reasons for uncertainty.\n"
-        "9. Provide exact verbatim quotes and page numbers for all citations."
+        "9. Provide exact verbatim quotes and page numbers for all citations.\n"
+        "\nCRITICAL RULES FOR WEB SEARCH (WHEN ENABLED):\n"
+        "10. LIVE INTERNET SEARCH INTEGRATION: Web search is enabled when live web search results are provided.\n"
+        "    - If the user asks for real-world dates, general facts, external company details, or internet verification of document claims, synthesize the answer accurately using the live web search results.\n"
+        "    - ZERO HALLUCINATION: Only state facts that are genuinely supported by the web search snippets or document excerpts.\n"
+        "    - When citing web facts, return Citation items with doc_name='Web Search: ' + source link, page_number=1, and exact quote snippets from the web results.\n"
+        "    - If there are no local documents, provide a thorough, helpful, web-grounded answer directly."
     )
 
     user_prompt = f"""
 DOCUMENTS UNDER INVESTIGATION:
-{', '.join(all_doc_names)}
+{', '.join(all_doc_names) if all_doc_names else 'None (Answering with live internet web search)'}
 
-RELEVANT EXCERPTS WITH SOURCE CITATIONS:
+LOCAL DOCUMENT EXCERPTS WITH SOURCE CITATIONS:
 {context_str}
-
+{web_context_str}
 USER INVESTIGATION QUERY:
 "{query}"
 
-Analyze the excerpts carefully. Detect any conflicts across distinct documents. Return your grounded analysis following the requested schema without adding any 'Forensic Audit:' prefix. If the query is a conversational greeting, thank-you, or feedback (such as 'perfect' or 'hi'), respond politely and conversationally instead of auditing the literal word.
+Analyze the excerpts and web findings carefully. Detect any conflicts across distinct documents. Return your grounded analysis following the requested schema without adding any 'Forensic Audit:' prefix. If the query is a conversational greeting, thank-you, or feedback (such as 'perfect' or 'hi'), respond politely and conversationally instead of auditing the literal word.
 """
 
     try:

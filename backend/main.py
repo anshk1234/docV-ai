@@ -6,6 +6,7 @@ import time
 import datetime
 from typing import List, Dict, Optional
 from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException, Header, Depends, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -178,6 +179,38 @@ class SessionState:
                     except Exception:
                         pass
 
+    def _resolve_upload_file_path(self, filename: str) -> str:
+        safe_name = os.path.basename((filename or "").strip())
+        if not safe_name or safe_name in {".", ".."}:
+            raise ValueError("Invalid filename.")
+
+        base_dir = os.path.realpath(self.upload_dir)
+        file_path = os.path.realpath(os.path.join(base_dir, safe_name))
+        if os.path.commonpath([base_dir, file_path]) != base_dir:
+            raise ValueError("Invalid file path.")
+
+        return file_path
+
+    def remove_document(self, doc_id: str) -> bool:
+        if doc_id not in self.documents:
+            return False
+        doc = self.documents.pop(doc_id)
+        self.index.clear()
+        for remaining_doc in self.documents.values():
+            self.index.add_document_pages(remaining_doc.pages)
+        try:
+            file_path = self._resolve_upload_file_path(doc.filename)
+        except ValueError:
+            file_path = ""
+
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+        self.save_store()
+        return True
+
 SESSIONS: Dict[str, SessionState] = {}
 SESSION_TTL_SECONDS = 4 * 3600  # 4 hours TTL
 
@@ -228,6 +261,7 @@ INDEX = DEFAULT_SESSION.index
 class QueryRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
+    web_search: Optional[bool] = False
 
 class QueryResponse(BaseModel):
     status: str
@@ -263,6 +297,21 @@ def list_documents(session_id: str = Depends(get_session_id)):
         for doc in session.documents.values()
     ]
 
+@router.delete("/documents/{doc_id}")
+@router.post("/documents/{doc_id}/delete")
+def delete_document(doc_id: str, session_id: str = Depends(get_session_id)):
+    session = get_session(session_id)
+    if not session.documents:
+        session.load_store()
+    success = session.remove_document(doc_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return {
+        "status": "success",
+        "deleted_id": doc_id,
+        "remaining_documents": len(session.documents)
+    }
+
 @router.post("/upload")
 async def upload_files(
     files: List[UploadFile] = File(...),
@@ -271,12 +320,17 @@ async def upload_files(
     session = get_session(session_id)
     new_docs = []
     for file in files:
-        temp_path = os.path.join(session.upload_dir, file.filename)
+        try:
+            temp_path = session._resolve_upload_file_path(file.filename)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid filename: {file.filename}")
+
+        safe_filename = os.path.basename(temp_path)
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
         try:
-            doc = ingest_file(temp_path, file.filename)
+            doc = ingest_file(temp_path, safe_filename)
             session.documents[doc.id] = doc
             session.index.add_document_pages(doc.pages)
             new_docs.append({
@@ -311,22 +365,29 @@ async def run_investigation(
     if not session.documents:
         session.load_store()
 
-    # Fast conversational check (allows greetings/gratitude even if no documents yet)
-    conv_result = check_conversational_query(req.query, has_documents=bool(session.documents))
-    if conv_result:
-        return QueryResponse(status="success", result=conv_result)
+    # Fast conversational check (only when web_search is not explicitly enabled)
+    if not req.web_search:
+        conv_result = check_conversational_query(req.query, has_documents=bool(session.documents))
+        if conv_result:
+            return QueryResponse(status="success", result=conv_result)
 
-    if not session.documents:
+    if not session.documents and not req.web_search:
         raise HTTPException(
             status_code=400,
             detail="No documents have been uploaded yet. Please upload documents first or load sample case files."
         )
 
     # Retrieve top relevant context chunks across documents in this session only
-    top_chunks = session.index.search(req.query.strip(), top_k=8)
+    top_chunks = session.index.search(req.query.strip(), top_k=8) if session.documents else []
     all_doc_names = [doc.filename for doc in session.documents.values()]
 
-    result = investigate_query(req.query, top_chunks, all_doc_names)
+    result = await run_in_threadpool(
+        investigate_query,
+        req.query,
+        top_chunks,
+        all_doc_names,
+        bool(req.web_search)
+    )
     return QueryResponse(status="success", result=result)
 
 @router.post("/reset")
