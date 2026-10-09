@@ -38,55 +38,21 @@ else:
     BASE_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(BASE_UPLOAD_DIR, exist_ok=True)
 
-SAMPLE_FILES = [
-    (
-        "Master_Service_Agreement_v1.txt",
-        """MASTER SERVICE AGREEMENT (MSA) - PROJECT TITAN
-Effective Date: January 15, 2026
-Between: Acron Corp (Client) and Zenith Innovations (Vendor)
+def get_sample_documents_dir() -> str:
+    """
+    Locates the sample_documents directory dynamically across local and deployed environments.
+    """
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "sample_documents"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_documents"),
+        os.path.join(os.getcwd(), "sample_documents"),
+        os.path.join(os.getcwd(), "backend", "sample_documents"),
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            return c
+    return candidates[0]
 
-SECTION 4: FINANCIAL TERMS & MILESTONES
-4.1 Total Contract Value: The total fixed price for deliverables is $150,000 USD.
-4.2 Payment Schedule: 
-    - Milestone 1 (Discovery & Architecture): $50,000 due upon completion by March 15, 2026.
-    - Milestone 2 (Core Engine Implementation): $50,000 due by June 30, 2026.
-    - Final Delivery & Sign-off: $50,000 due by August 30, 2026.
-4.3 Late Delivery Penalty: 1.5% deduction per week of unexcused delay.
-4.4 Governing Law: State of New York."""
-    ),
-    (
-        "Email_Addendum_Scope_March.txt",
-        """EMAIL ADDENDUM: PROJECT TITAN BUDGET & SCOPE ADJUSTMENT
-From: Sarah Jenkins (VP Operations, Acron Corp)
-To: Marcus Vance (Lead Partner, Zenith Innovations)
-Date: February 28, 2026
-Subject: Re: Project Titan - Additional Scope & Accelerated Timeline
-
-Marcus,
-Per our executive alignment call yesterday, we are officially expanding the scope of Milestone 1 to include automated compliance auditing.
-In consideration of this additional deliverable:
-1. Milestone 1 payment is increased from $50,000 to $72,500 USD.
-2. The revised deadline for Milestone 1 delivery is extended to April 10, 2026.
-3. Total contract cap remains unchanged, with deductions offset against Milestone 3.
-
-Please consider this written email confirmation as legally binding amendment pending formal contract revision."""
-    ),
-    (
-        "Vendor_Invoice_INV-089.txt",
-        """INVOICE #INV-2026-089
-Zenith Innovations Inc.
-Date: April 12, 2026
-Billed To: Acron Corp
-
-DESCRIPTION OF DELIVERABLES:
-Item 1: Milestone 1 Completion (Discovery, Architecture, & Compliance Engine)
-Amount Billed: $85,000 USD
-Payment Terms: Net 15 Days
-Due Date: April 27, 2026
-
-Notes: Invoice reflects extra consulting hours incurred during deployment."""
-    )
-]
 
 class SessionState:
     def __init__(self, session_id: str):
@@ -126,36 +92,26 @@ class SessionState:
                 print(f"[STORE][{self.session_id}] Failed to load store: {e}")
         return False
 
-    def init_sample_case(self):
-        self.documents.clear()
-        self.index.clear()
-        for fname, content in SAMPLE_FILES:
-            path = os.path.join(self.upload_dir, fname)
-            try:
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(content.strip())
-                doc = ingest_file(path, fname)
-            except Exception:
-                doc_id = str(uuid.uuid4())
-                pages = [
-                    DocumentPage(
-                        doc_id=doc_id,
-                        doc_name=fname,
-                        page_number=1,
-                        content=content.strip()
-                    )
-                ]
-                doc = IngestedDocument(
-                    id=doc_id,
-                    filename=fname,
-                    file_type="txt",
-                    total_pages=1,
-                    pages=pages,
-                    created_at=datetime.datetime.utcnow().isoformat()
-                )
+    def init_sample_case(self) -> int:
+        self.reset()
+        sample_dir = get_sample_documents_dir()
+        if not os.path.exists(sample_dir):
+            return 0
+
+        for fname in sorted(os.listdir(sample_dir)):
+            if not fname.endswith((".txt", ".md", ".pdf", ".png", ".jpg", ".jpeg")):
+                continue
+            src_path = os.path.join(sample_dir, fname)
+            if not os.path.isfile(src_path):
+                continue
+
+            dest_path = os.path.join(self.upload_dir, fname)
+            shutil.copyfile(src_path, dest_path)
+            doc = ingest_file(dest_path, fname)
             self.documents[doc.id] = doc
             self.index.add_document_pages(doc.pages)
         self.save_store()
+        return len(self.documents)
 
     def reset(self):
         self.documents.clear()
@@ -403,7 +359,12 @@ def load_sample_case(session_id: str = Depends(get_session_id)):
     for an immediate 1-click live demonstration for hackathon judges!
     """
     session = get_session(session_id)
-    session.init_sample_case()
+    loaded_count = session.init_sample_case()
+    if loaded_count == 0:
+        raise HTTPException(
+            status_code=500,
+            detail="Sample documents are unavailable on the server. Please upload your own files."
+        )
     return {
         "status": "sample data loaded successfully",
         "documents": [doc.filename for doc in session.documents.values()],

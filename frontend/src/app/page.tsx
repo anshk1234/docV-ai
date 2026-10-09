@@ -520,18 +520,31 @@ function stringToUint8Array(str: string): Uint8Array {
 function generateReportPdf(result: InvestigationResult): Uint8Array {
   const pages: string[] = [];
   let currentCommands: string[] = [];
-  let y = 780;
-  const margin = 50;
   const pageWidth = 595;
   const pageHeight = 842;
-  const bottomMargin = 50;
+  const margin = 44;
+  const contentWidth = pageWidth - margin * 2; // 507
+  const bottomMargin = 55;
+  const topMargin = 785;
+  let y = topMargin;
 
   function newPage() {
     if (currentCommands.length > 0) {
       pages.push(currentCommands.join("\n"));
     }
     currentCommands = [];
-    y = 780;
+    y = topMargin;
+
+    // Running top header for subsequent pages
+    currentCommands.push(
+      "BT",
+      "/F2 8 Tf 0.45 0.45 0.45 rg",
+      `1 0 0 1 ${margin} 806 Tm`,
+      "(docV.ai  |  DOCUMENT REPORT) Tj",
+      "ET",
+      "0.85 0.85 0.83 RG 0.5 w",
+      `${margin} 800 m ${pageWidth - margin} 800 l S`
+    );
   }
 
   function escapePdfText(text: string): string {
@@ -543,107 +556,328 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
       .replace(/[^\x20-\x7E\t]/g, " ");
   }
 
-  function addText(text: string, font: string, size: number, lineGap: number = 14, color: [number, number, number] = [0.1, 0.1, 0.1]) {
-    if (y < bottomMargin + lineGap) {
-      newPage();
+  function addRect(
+    rx: number,
+    ry: number,
+    rw: number,
+    rh: number,
+    fillColor?: [number, number, number],
+    strokeColor?: [number, number, number],
+    lineWidth: number = 0.5
+  ) {
+    if (fillColor) {
+      const [r, g, b] = fillColor;
+      currentCommands.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
     }
+    if (strokeColor) {
+      const [r, g, b] = strokeColor;
+      currentCommands.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG`);
+      currentCommands.push(`${lineWidth.toFixed(2)} w`);
+    }
+    const op = fillColor && strokeColor ? "B" : fillColor ? "f" : "S";
+    currentCommands.push(`${rx.toFixed(2)} ${ry.toFixed(2)} ${rw.toFixed(2)} ${rh.toFixed(2)} re ${op}`);
+  }
+
+  function addTextAt(
+    tx: number,
+    ty: number,
+    text: string,
+    font: string,
+    size: number,
+    color: [number, number, number] = [0.1, 0.1, 0.1]
+  ) {
     const escaped = escapePdfText(text);
-    const r = color[0].toFixed(2);
-    const g = color[1].toFixed(2);
-    const b = color[2].toFixed(2);
+    const [r, g, b] = color;
     currentCommands.push(
       "BT",
       `/${font} ${size} Tf`,
-      `${r} ${g} ${b} rg`,
-      `1 0 0 1 ${margin} ${y} Tm`,
+      `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`,
+      `1 0 0 1 ${tx.toFixed(2)} ${ty.toFixed(2)} Tm`,
       `(${escaped}) Tj`,
       "ET"
     );
+  }
+
+  function addText(
+    text: string,
+    font: string,
+    size: number,
+    lineGap: number = 13,
+    color: [number, number, number] = [0.15, 0.15, 0.15],
+    indent: number = 0
+  ) {
+    if (y < bottomMargin + lineGap) {
+      newPage();
+    }
+    addTextAt(margin + indent, y, text, font, size, color);
     y -= lineGap;
   }
 
-  function wrapText(text: string, maxChars: number = 75): string[] {
-    const words = text.split(/\s+/);
+  function wrapText(text: string, maxChars: number = 80): string[] {
+    const words = text.split(/\s+/).filter(Boolean);
     const lines: string[] = [];
-    let currentLine = "";
+    let cur = "";
     for (const w of words) {
-      if ((currentLine + " " + w).trim().length <= maxChars) {
-        currentLine = (currentLine + " " + w).trim();
+      if ((cur + (cur ? " " : "") + w).length <= maxChars) {
+        cur += (cur ? " " : "") + w;
       } else {
-        if (currentLine) lines.push(currentLine);
-        currentLine = w;
+        if (cur) lines.push(cur);
+        cur = w;
       }
     }
-    if (currentLine) lines.push(currentLine);
-    return lines;
+    if (cur) lines.push(cur);
+    return lines.length > 0 ? lines : [""];
   }
 
-  function addParagraph(text: string, font: string = "F1", size: number = 10, lineGap: number = 13, maxChars: number = 80, color: [number, number, number] = [0.15, 0.15, 0.15]) {
-    const lines = wrapText(text, maxChars);
+  function addParagraph(
+    text: string,
+    font: string = "F1",
+    size: number = 9,
+    lineGap: number = 12.5,
+    maxChars: number = 86,
+    color: [number, number, number] = [0.2, 0.2, 0.2],
+    indent: number = 0
+  ) {
+    const clean = text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1");
+    const lines = wrapText(clean, maxChars);
     for (const l of lines) {
-      addText(l, font, size, lineGap, color);
+      addText(l, font, size, lineGap, color, indent);
     }
   }
 
-  function addSectionHeader(title: string) {
-    y -= 8;
-    if (y < bottomMargin + 40) newPage();
-    addText(title, "F2", 12, 15, [0.8, 0.35, 0.15]);
-    currentCommands.push(
-      "0.8 0.8 0.8 RG",
-      "0.5 w",
-      `${margin} ${y + 4} m ${pageWidth - margin} ${y + 4} l S`
-    );
-    y -= 8;
+  function addSectionHeader(title: string, subtitle?: string) {
+    if (y < bottomMargin + 45) newPage();
+    y -= 10;
+    // Section title with orange accent tag
+    addRect(margin, y - 2, 3.5, 14, [0.85, 0.35, 0.12]);
+    addTextAt(margin + 8, y + 1, title.toUpperCase(), "F2", 10.5, [0.1, 0.1, 0.1]);
+    if (subtitle) {
+      addTextAt(margin + 12 + title.length * 6, y + 1, `|  ${subtitle}`, "F1", 8.5, [0.45, 0.45, 0.45]);
+    }
+    addRect(margin, y - 5, contentWidth, 0.5, undefined, [0.86, 0.86, 0.84], 0.5);
+    y -= 15;
   }
 
-  // Header banner
-  addText("docV.ai - Intelligent Document Investigation Report", "F2", 16, 20, [0.1, 0.1, 0.1]);
-  addText(`Generated: ${new Date().toLocaleString()} | Problem Statement: ALG-AI-02`, "F1", 9, 14, [0.4, 0.4, 0.4]);
-  y -= 4;
+  // 1. Executive Top Header Banner (Page 1)
+  addRect(margin, y - 36, contentWidth, 42, [0.14, 0.14, 0.15], undefined);
+  addRect(margin, y - 36, 4, 42, [0.85, 0.35, 0.12]);
+  addTextAt(margin + 14, y - 14, "docV.ai  |  DOCUMENT REPORT", "F2", 13.5, [1, 1, 1]);
+  addTextAt(margin + 14, y - 28, "Cross-Document Contradiction Analysis & Grounded Evidence Synthesis", "F1", 8.5, [0.8, 0.8, 0.8]);
+  addTextAt(pageWidth - margin - 110, y - 28, `Date: ${new Date().toLocaleDateString()}`, "F1", 8, [0.75, 0.75, 0.75]);
+  y -= 48;
 
-  // Query Box
-  addText("INVESTIGATION QUERY", "F2", 9, 12, [0.8, 0.35, 0.15]);
-  addParagraph(`"${result.query}"`, "F2", 10, 14, 75, [0.05, 0.05, 0.05]);
+  // 2. Query Box
+  const queryLines = wrapText(`"${result.query}"`, 80);
+  const qBoxHeight = Math.max(34, 20 + queryLines.length * 12);
+  addRect(margin, y - qBoxHeight, contentWidth, qBoxHeight, [0.97, 0.97, 0.96], [0.88, 0.88, 0.86], 0.5);
+  addRect(margin, y - qBoxHeight, 3.5, qBoxHeight, [0.85, 0.35, 0.12]);
+  addTextAt(margin + 10, y - 11, "TARGET INVESTIGATION QUERY:", "F2", 8, [0.85, 0.35, 0.12]);
+  for (let qIdx = 0; qIdx < queryLines.length; qIdx++) {
+    addTextAt(margin + 10, y - 23 - qIdx * 12, queryLines[qIdx], "F2", 9, [0.1, 0.1, 0.1]);
+  }
+  y -= qBoxHeight + 8;
+
+  // 3. Executive KPI Metric Tiles (3 Cards Row)
+  const tileW = (contentWidth - 12) / 3;
+  const tileH = 34;
+  const tileY = y - tileH;
+
+  // Tile 1: Confidence
+  const confColor: [number, number, number] = result.confidence_score >= 80 ? [0.15, 0.6, 0.3] : [0.85, 0.45, 0.1];
+  addRect(margin, tileY, tileW, tileH, [0.975, 0.975, 0.97], [0.88, 0.88, 0.86], 0.5);
+  addRect(margin, tileY, 3, tileH, confColor);
+  addTextAt(margin + 8, tileY + 20, "GROUNDING CONFIDENCE", "F2", 7.5, [0.45, 0.45, 0.45]);
+  addTextAt(margin + 8, tileY + 7, `${result.confidence_score}% Verified`, "F2", 10.5, confColor);
+
+  // Tile 2: Uncertainty Level
+  const uncLevel = (result.uncertainty_level || "LOW").toUpperCase();
+  const uncColor: [number, number, number] = uncLevel === "LOW" ? [0.15, 0.6, 0.3] : uncLevel === "HIGH" ? [0.85, 0.2, 0.2] : [0.85, 0.5, 0.1];
+  const t2X = margin + tileW + 6;
+  addRect(t2X, tileY, tileW, tileH, [0.975, 0.975, 0.97], [0.88, 0.88, 0.86], 0.5);
+  addRect(t2X, tileY, 3, tileH, uncColor);
+  addTextAt(t2X + 8, tileY + 20, "EPISTEMIC UNCERTAINTY", "F2", 7.5, [0.45, 0.45, 0.45]);
+  addTextAt(t2X + 8, tileY + 7, `${uncLevel} Risk`, "F2", 10.5, uncColor);
+
+  // Tile 3: Discrepancies Count
+  const confCount = (result.conflicts_detected || []).length;
+  const confTileColor: [number, number, number] = confCount > 0 ? [0.85, 0.2, 0.2] : [0.15, 0.6, 0.3];
+  const t3X = margin + (tileW + 6) * 2;
+  addRect(t3X, tileY, tileW, tileH, [0.975, 0.975, 0.97], [0.88, 0.88, 0.86], 0.5);
+  addRect(t3X, tileY, 3, tileH, confTileColor);
+  addTextAt(t3X + 8, tileY + 20, "CONTRADICTIONS FOUND", "F2", 7.5, [0.45, 0.45, 0.45]);
+  addTextAt(t3X + 8, tileY + 7, `${confCount} Discrepanc${confCount === 1 ? "y" : "ies"}`, "F2", 10.5, confTileColor);
+  y -= tileH + 12;
+
+  // 4. Section: Grounded Synthesis (Structured Markdown Parser)
+  addSectionHeader("1. Grounded Synthesis & Findings");
+  const rawLines = (result.synthesized_answer || "").split(/\r?\n/);
+  for (let i = 0; i < rawLines.length; i++) {
+    const raw = rawLines[i].trim();
+    if (!raw) {
+      y -= 3;
+      continue;
+    }
+
+    // Dividers (--- or ***)
+    if (/^(\-{3,}|\*{3,}|_{3,})$/.test(raw)) {
+      if (y < bottomMargin + 18) newPage();
+      addRect(margin, y - 2, contentWidth, 0.5, undefined, [0.88, 0.88, 0.86], 0.5);
+      y -= 8;
+      continue;
+    }
+
+    // Headings (#, ##, ###)
+    const hMatch = raw.match(/^(#{1,3})\s+(.*)$/);
+    if (hMatch) {
+      if (y < bottomMargin + 25) newPage();
+      y -= 4;
+      const cleanH = hMatch[2].replace(/\*\*/g, "").trim();
+      addText(cleanH, "F2", 10, 13, [0.12, 0.12, 0.12]);
+      y -= 2;
+      continue;
+    }
+
+    // Table rows (| col 1 | col 2 |)
+    if (raw.startsWith("|") && raw.endsWith("|")) {
+      if (/^\|(\s*[-:]+\s*\|)+$/.test(raw)) {
+        addRect(margin, y + 2, contentWidth, 0.5, undefined, [0.8, 0.8, 0.8], 0.5);
+        y -= 2;
+        continue;
+      }
+      const cells = raw.slice(1, -1).split("|").map((c) => c.replace(/\*\*/g, "").trim());
+      if (cells.length >= 2) {
+        if (y < bottomMargin + 18) newPage();
+        const colW = contentWidth / cells.length;
+        addRect(margin, y - 3, contentWidth, 13, [0.97, 0.97, 0.96], [0.9, 0.9, 0.88], 0.4);
+        for (let cIdx = 0; cIdx < cells.length; cIdx++) {
+          addTextAt(margin + cIdx * colW + 4, y, cells[cIdx].slice(0, 32), "F1", 8, [0.15, 0.15, 0.15]);
+        }
+        y -= 14;
+        continue;
+      }
+    }
+
+    // Bullet points (- or * or •)
+    const bulletMatch = raw.match(/^([*\-•])\s+(.*)$/);
+    if (bulletMatch) {
+      const cleanBullet = bulletMatch[2].replace(/\*\*(.*?)\*\*/g, "$1").trim();
+      const bLines = wrapText(cleanBullet, 80);
+      for (let bIdx = 0; bIdx < bLines.length; bIdx++) {
+        if (bIdx === 0) {
+          addText(`•  ${bLines[bIdx]}`, "F1", 8.8, 11.5, [0.18, 0.18, 0.18], 6);
+        } else {
+          addText(bLines[bIdx], "F1", 8.8, 11.5, [0.18, 0.18, 0.18], 15);
+        }
+      }
+      continue;
+    }
+
+    // Standard paragraph
+    addParagraph(raw, "F1", 9, 12, 86, [0.2, 0.2, 0.2]);
+  }
   y -= 6;
 
-  // 1. Synthesized Answer
-  addSectionHeader("1. Grounded Synthesis");
-  addParagraph(result.synthesized_answer, "F1", 10, 14, 80);
-
-  // 2. Grounding & Epistemic Uncertainty
-  addSectionHeader("2. Grounding & Uncertainty Metrics");
-  addText(`Grounding Confidence: ${result.confidence_score}%  |  Uncertainty Level: ${result.uncertainty_level.toUpperCase()}`, "F2", 10, 15, [0.2, 0.2, 0.2]);
-  if (result.uncertainty_reasons && result.uncertainty_reasons.length > 0) {
-    addText("Identified Factors & Caveats:", "F2", 9, 13, [0.3, 0.3, 0.3]);
-    for (const reason of result.uncertainty_reasons) {
-      addParagraph(`- ${reason}`, "F1", 9, 12, 80, [0.3, 0.3, 0.3]);
-    }
-  }
-
-  // 3. Discrepancies
+  // 5. Section: Cross-Document Discrepancies
   const conflicts = result.conflicts_detected || [];
-  addSectionHeader(`3. Cross-Document Discrepancies (${conflicts.length} Detected)`);
+  addSectionHeader(
+    `2. Cross-Document Contradictions (${conflicts.length})`,
+    conflicts.length === 0 ? "Mutual Consistency Confirmed" : "Potential Overbilling or Scope Conflicts"
+  );
+
   if (conflicts.length === 0) {
-    addText("No cross-document discrepancies detected. Source documents are mutually consistent.", "F1", 10, 14);
+    addRect(margin, y - 24, contentWidth, 24, [0.96, 0.98, 0.96], [0.8, 0.9, 0.8], 0.5);
+    addTextAt(margin + 12, y - 10, "No cross-document discrepancies detected. Source documents are mutually consistent.", "F2", 9, [0.15, 0.55, 0.25]);
+    y -= 30;
   } else {
     conflicts.forEach((c, idx) => {
-      addText(`Discrepancy #${idx + 1}: ${c.topic} [Severity: ${c.severity.toUpperCase()}]`, "F2", 10, 14, [0.75, 0.25, 0.1]);
-      addParagraph(`Source A (${c.document_a}): "${c.claim_a}"`, "F1", 9, 12, 80, [0.2, 0.2, 0.2]);
-      addParagraph(`Source B (${c.document_b}): "${c.claim_b}"`, "F1", 9, 12, 80, [0.2, 0.2, 0.2]);
-      addParagraph(`Resolution: ${c.resolution_note}`, "F1", 9, 13, 80, [0.35, 0.35, 0.35]);
-      y -= 4;
+      const sev = (c.severity || "MEDIUM").toUpperCase();
+      const sevColor: [number, number, number] =
+        sev === "HIGH" ? [0.85, 0.2, 0.15] : sev === "LOW" ? [0.25, 0.5, 0.75] : [0.88, 0.52, 0.1];
+
+      const claimALines = wrapText(`"${c.claim_a}"`, 80);
+      const claimBLines = wrapText(`"${c.claim_b}"`, 80);
+      const resLines = wrapText(c.resolution_note || "Investigate source timeline for precedence.", 82);
+      const cardH = 46 + (claimALines.length + claimBLines.length + resLines.length) * 11;
+
+      if (y < bottomMargin + cardH + 10) newPage();
+
+      const cardY = y - cardH;
+      addRect(margin, cardY, contentWidth, cardH, [0.985, 0.985, 0.98], [0.88, 0.88, 0.86], 0.5);
+      addRect(margin, cardY, 3.5, cardH, sevColor);
+
+      // Card Header
+      addTextAt(margin + 10, y - 12, `DISCREPANCY #${idx + 1}: ${c.topic.toUpperCase()}`, "F2", 9, [0.1, 0.1, 0.1]);
+      addTextAt(pageWidth - margin - 75, y - 12, `[${sev} IMPACT]`, "F2", 8, sevColor);
+
+      let cardCursor = y - 24;
+      // Document A
+      addTextAt(margin + 10, cardCursor, `Source A (${c.document_a}):`, "F2", 8, [0.35, 0.35, 0.35]);
+      cardCursor -= 10;
+      for (const cal of claimALines) {
+        addTextAt(margin + 18, cardCursor, cal, "F1", 8, [0.15, 0.15, 0.15]);
+        cardCursor -= 10;
+      }
+
+      // Document B
+      addTextAt(margin + 10, cardCursor, `Source B (${c.document_b}):`, "F2", 8, [0.35, 0.35, 0.35]);
+      cardCursor -= 10;
+      for (const cbl of claimBLines) {
+        addTextAt(margin + 18, cardCursor, cbl, "F1", 8, [0.15, 0.15, 0.15]);
+        cardCursor -= 10;
+      }
+
+      // Resolution Note
+      addTextAt(margin + 10, cardCursor, "Forensic Resolution:", "F2", 8, [0.85, 0.35, 0.12]);
+      cardCursor -= 10;
+      for (const rl of resLines) {
+        addTextAt(margin + 18, cardCursor, rl, "F1", 8, [0.35, 0.35, 0.35]);
+        cardCursor -= 10;
+      }
+
+      y = cardY - 8;
     });
   }
 
-  // 4. Citations
+  // 6. Section: Verifiable Citations
   const citations = result.citations || [];
-  addSectionHeader(`4. Verifiable Citations (${citations.length} Sources)`);
-  citations.forEach((cite, idx) => {
-    addText(`[${idx + 1}] ${cite.doc_name} (Page ${cite.page_number})`, "F2", 9, 12, [0.15, 0.35, 0.65]);
-    addParagraph(`"${cite.quote}"`, "F1", 9, 12, 82, [0.3, 0.3, 0.3]);
-    y -= 2;
-  });
+  if (citations.length > 0) {
+    addSectionHeader(`3. Verifiable Source Citations (${citations.length})`);
+    citations.forEach((cite, idx) => {
+      const isWeb = cite.doc_name.toLowerCase().includes("web");
+      const pageTag = isWeb ? "Web Source" : `Page ${cite.page_number}`;
+      const qLines = wrapText(`"${cite.quote}"`, 82);
+      const citeCardH = Math.max(28, 16 + qLines.length * 10);
+
+      if (y < bottomMargin + citeCardH + 6) newPage();
+
+      const citeY = y - citeCardH;
+      addRect(margin, citeY, contentWidth, citeCardH, [0.99, 0.99, 0.985], [0.9, 0.9, 0.88], 0.4);
+      addRect(margin, citeY, 2.5, citeCardH, isWeb ? [0.2, 0.5, 0.8] : [0.85, 0.35, 0.12]);
+
+      addTextAt(margin + 8, y - 10, `[${idx + 1}]  ${cite.doc_name}`, "F2", 8, [0.15, 0.3, 0.55]);
+      addTextAt(pageWidth - margin - 60, y - 10, pageTag, "F1", 7.5, [0.5, 0.5, 0.5]);
+      for (let qL = 0; qL < qLines.length; qL++) {
+        addTextAt(margin + 14, y - 20 - qL * 10, qLines[qL], "F1", 7.5, [0.3, 0.3, 0.3]);
+      }
+      y = citeY - 6;
+    });
+  }
+
+  // 7. Section: Epistemic Factors & Caveats
+  if (result.uncertainty_reasons && result.uncertainty_reasons.length > 0) {
+    addSectionHeader("4. Epistemic Factors & Audit Caveats");
+    for (const reason of result.uncertainty_reasons) {
+      if (y < bottomMargin + 16) newPage();
+      const rLines = wrapText(reason, 82);
+      for (let rIdx = 0; rIdx < rLines.length; rIdx++) {
+        if (rIdx === 0) {
+          addText(`•  ${rLines[rIdx]}`, "F1", 8.5, 11, [0.35, 0.35, 0.35], 6);
+        } else {
+          addText(rLines[rIdx], "F1", 8.5, 11, [0.35, 0.35, 0.35], 15);
+        }
+      }
+    }
+  }
 
   if (currentCommands.length > 0) {
     pages.push(currentCommands.join("\n"));
@@ -667,7 +901,24 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
   for (let i = 0; i < pages.length; i++) {
     const pageObjId = pageObjStart + i * 2;
     const contentObjId = pageObjId + 1;
-    const contentStream = pages[i];
+    let contentStream = pages[i];
+    const pageNum = i + 1;
+    const totalPages = pages.length;
+
+    // Running footer with page count
+    const footerCommands = [
+      "0.85 0.85 0.83 RG 0.5 w",
+      `${margin} 36 m ${pageWidth - margin} 36 l S`,
+      "BT",
+      "/F1 7.5 Tf 0.5 0.5 0.5 rg",
+      `1 0 0 1 ${margin} 24 Tm`,
+      "(CONFIDENTIAL  |  Generated by docV.ai Intelligent Document Investigator) Tj",
+      `1 0 0 1 ${pageWidth - margin - 52} 24 Tm`,
+      `(${escapePdfText(`Page ${pageNum} of ${totalPages}`)}) Tj`,
+      "ET"
+    ].join("\n");
+    contentStream = contentStream + "\n" + footerCommands;
+
     const streamLen = contentStream.length;
     objects.push(
       `${pageObjId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjId} 0 R >>\nendobj`

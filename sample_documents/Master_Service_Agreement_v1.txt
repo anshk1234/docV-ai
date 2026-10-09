@@ -1,0 +1,12 @@
+MASTER SERVICE AGREEMENT (MSA) - PROJECT TITAN
+Effective Date: January 15, 2026
+Between: Acron Corp (Client) and Zenith Innovations (Vendor)
+
+SECTION 4: FINANCIAL TERMS & MILESTONES
+4.1 Total Contract Value: The total fixed price for deliverables is $150,000 USD.
+4.2 Payment Schedule: 
+    - Milestone 1 (Discovery & Architecture): $50,000 due upon completion by March 15, 2026.
+    - Milestone 2 (Core Engine Implementation): $50,000 due by June 30, 2026.
+    - Final Delivery & Sign-off: $50,000 due by August 30, 2026.
+4.3 Late Delivery Penalty: 1.5% deduction per week of unexcused delay.
+4.4 Governing Law: State of New York.
