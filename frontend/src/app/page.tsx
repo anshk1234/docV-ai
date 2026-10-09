@@ -1144,35 +1144,25 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
 
             {/* Floating Input Container */}
             <div className="w-full bg-[var(--surface-raised)] border border-[var(--border)] focus-within:border-[var(--accent)]/50 rounded-[24px] px-3.5 py-2 shadow-md shadow-black/20 transition-colors pointer-events-auto">
-              {/* Row 1: Subtle Document Chips & Live Search Badge */}
-              {(documents.length > 0 || webSearchEnabled) && (
-                <div className="flex items-center justify-between gap-1.5 px-1 pt-0.5 pb-1 text-xs text-[var(--text-muted)]">
-                  {documents.length > 0 ? (
-                    <div className="flex items-center gap-1.5 overflow-x-auto truncate scrollbar-none">
-                      <Layers className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
-                      <span className="font-normal text-[12px]">{documents.length} {documents.length === 1 ? "document" : "documents"} loaded:</span>
-                      {documents.slice(0, 3).map((d) => (
-                        <span
-                          key={d.id}
-                          className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-[11.5px] max-w-[140px]"
-                          title={d.filename}
-                        >
-                          {d.filename}
-                        </span>
-                      ))}
-                      {documents.length > 3 && (
-                        <span className="text-[11px] text-[var(--text-muted)]">+{documents.length - 3}</span>
-                      )}
-                    </div>
-                  ) : <div />}
-
-                  {webSearchEnabled && (
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-[11px] font-medium border border-[var(--accent)]/30 flex-shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-                      <Globe className="w-3 h-3" />
-                      <span>Web Search On</span>
-                    </div>
-                  )}
+              {/* Row 1: Subtle Document Chips */}
+              {documents.length > 0 && (
+                <div className="flex items-center gap-1.5 px-1 pt-0.5 pb-1 text-xs text-[var(--text-muted)]">
+                  <Layers className="w-3 h-3 text-[var(--text-muted)] flex-shrink-0" />
+                  <span className="font-normal text-[12px]">{documents.length} {documents.length === 1 ? "document" : "documents"} loaded:</span>
+                  <div className="flex items-center gap-1 overflow-x-auto truncate scrollbar-none">
+                    {documents.slice(0, 3).map((d) => (
+                      <span
+                        key={d.id}
+                        className="px-1.5 py-0.5 rounded bg-[var(--surface)] text-[var(--text-muted)] truncate text-[11.5px] max-w-[140px]"
+                        title={d.filename}
+                      >
+                        {d.filename}
+                      </span>
+                    ))}
+                    {documents.length > 3 && (
+                      <span className="text-[11px] text-[var(--text-muted)]">+{documents.length - 3}</span>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1233,7 +1223,7 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
                 <button
                   type="button"
                   onClick={() => setWebSearchEnabled((prev) => !prev)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 mb-0.5 cursor-pointer relative group ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 mb-0.5 cursor-pointer ${
                     webSearchEnabled
                       ? "bg-[var(--accent)] text-white shadow-sm ring-2 ring-[var(--accent)]/30"
                       : "bg-[var(--surface)] hover:bg-[#20201d] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)]"
@@ -1242,9 +1232,6 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
                   aria-label="Toggle web search"
                 >
                   <Globe className="w-4 h-4" />
-                  {webSearchEnabled && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-[var(--surface)]" />
-                  )}
                 </button>
 
                 {/* Circular Send Button */}
