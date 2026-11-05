@@ -1,0 +1,11 @@
+=== docV.ai Test Suite Execution: test6 ===
+Executed: tests/test1.py
+Status: 6/6 tests passed successfully (0.012s)
+
+Results:
+[PASS] test_01_empty_index_search: Empty index search returns empty results gracefully.
+[PASS] test_02_bm25_multi_document_indexing_and_relevance: BM25 multi-document indexing & query relevance.
+[PASS] test_03_conversational_query_gatekeeping: Small-talk and greetings fast conversational bypass.
+[PASS] test_04_path_traversal_hardening_and_sandbox: Malicious path traversal prevention.
+[PASS] test_05_conflict_and_citation_models: Data models & schema verification.
+[PASS] test_06_sample_case_initialization_and_removal: Dynamic sample loading and document deletion index rebuild.
