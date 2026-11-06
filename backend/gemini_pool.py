@@ -1,6 +1,7 @@
 import os
 import time
 import random
+import concurrent.futures
 from typing import List, Optional, Any
 from google import genai
 from google.genai import types
@@ -13,15 +14,14 @@ load_dotenv(os.path.join(base_dir, ".env"))
 load_dotenv(os.path.join(parent_dir, ".env"))
 load_dotenv()
 
-# Model cascade in order of preference
+# Optimized model cascade ordered by measured latency and availability
 MODEL_CASCADE = [
-    "gemini-flash-latest",
-    "gemini-2.5-flash",
-    "gemini-3.8-flash",
-    "gemini-3.5-flash",
-    "gemini-flash-lite-latest",
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-flash-lite"
+    "gemini-3.1-flash-lite",  # Ultra-fast (~2.0-2.5s), reliable structured output
+    "gemini-3.5-flash-lite",  # Next-gen lightweight (~2.5-3.0s)
+    "gemini-2.5-flash",       # Standard 2.5 Flash (~3.5s with zero thinking budget)
+    "gemini-3.8-flash",       # High capacity Flash
+    "gemini-3.5-flash",       # Fallback Flash
+    "gemini-flash-latest"     # Catch-all alias
 ]
 
 class GeminiPoolManager:
@@ -71,11 +71,12 @@ class GeminiPoolManager:
         system_instruction: Optional[str] = None,
         response_schema: Optional[Any] = None,
         response_mime_type: Optional[str] = None,
-        temperature: float = 0.1
+        temperature: float = 0.1,
+        per_attempt_timeout: float = 7.0
     ) -> str:
         """
-        Executes generation using a multi-key pool + multi-model cascade with exponential backoff.
-        Automatically survives 503 (high demand) and 429 (rate limits).
+        Executes generation using a multi-key pool + multi-model cascade with exponential backoff and timeouts.
+        Automatically survives 503 (high demand), 429 (rate limits), and network stalls.
         """
         if not self.keys:
             self.reload_keys()
@@ -87,7 +88,7 @@ class GeminiPoolManager:
         # Iterate through the model cascade
         for model_name in MODEL_CASCADE:
             # For each model, try up to 2 key rotations
-            for attempt in range(min(3, len(self.keys))):
+            for attempt in range(min(2, len(self.keys))):
                 active_key = self.get_active_key()
                 client = genai.Client(api_key=active_key)
 
@@ -99,15 +100,27 @@ class GeminiPoolManager:
                 if response_schema:
                     config_kwargs["response_schema"] = response_schema
 
+                # Prevent excessive reasoning token latency on supported models
+                if model_name in {"gemini-3.1-flash-lite", "gemini-2.5-flash"}:
+                    config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+
                 config = types.GenerateContentConfig(**config_kwargs)
 
                 try:
-                    response = client.models.generate_content(
-                        model=model_name,
-                        contents=contents,
-                        config=config
-                    )
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(
+                            client.models.generate_content,
+                            model=model_name,
+                            contents=contents,
+                            config=config
+                        )
+                        response = future.result(timeout=per_attempt_timeout)
                     return response.text
+                except concurrent.futures.TimeoutError:
+                    print(f"[docV.ai Warning] {model_name} timed out (> {per_attempt_timeout}s). Rotating key and cascading...")
+                    self.rotate_key()
+                    last_exception = TimeoutError(f"Model {model_name} timed out after {per_attempt_timeout}s")
+                    continue
                 except Exception as e:
                     err_msg = str(e).lower()
                     last_exception = e
@@ -115,21 +128,26 @@ class GeminiPoolManager:
                     # Check for rate limit (429), high demand (503), or quota exhaustion
                     is_503 = "503" in err_msg or "unavailable" in err_msg or "high demand" in err_msg
                     is_429 = "429" in err_msg or "quota" in err_msg or "rate limit" in err_msg
+                    is_404 = "404" in err_msg or "not found" in err_msg
 
-                    if is_429:
+                    if is_404:
+                        # Model not available, immediately break to next model
+                        print(f"[docV.ai Warning] {model_name} returned 404 (unavailable). Skipping to next model...")
+                        break
+                    elif is_429:
                         print(f"[docV.ai Warning] Rate limit hit on {model_name}. Rotating API key...")
                         self.rotate_key()
-                        time.sleep(0.5)
+                        time.sleep(0.3)
                         continue
                     elif is_503:
                         print(f"[docV.ai Warning] {model_name} experiencing 503 high demand. Trying next model tier...")
                         self.rotate_key()
-                        time.sleep(0.4)
+                        time.sleep(0.3)
                         break  # Break inner loop to try next model in MODEL_CASCADE
                     else:
                         print(f"[docV.ai Warning] Error on {model_name} with key #{self.current_key_idx + 1}: {err_msg[:120]}")
                         self.rotate_key()
-                        time.sleep(0.5)
+                        time.sleep(0.3)
 
         raise RuntimeError(f"All models and keys exhausted. Last error: {str(last_exception)}")
 
