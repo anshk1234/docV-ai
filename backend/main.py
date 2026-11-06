@@ -93,6 +93,17 @@ class SessionState:
                 print(f"[STORE][{self.session_id}] Failed to load store: {e}")
         return False
 
+    def rehydrate(self, docs: List[IngestedDocument]) -> int:
+        if not docs:
+            return 0
+        self.documents.clear()
+        self.index.clear()
+        for doc in docs:
+            self.documents[doc.id] = doc
+            self.index.add_document_pages(doc.pages)
+        self.save_store()
+        return len(self.documents)
+
     def init_sample_case(self) -> int:
         self.reset()
         sample_dir = get_sample_documents_dir()
@@ -241,6 +252,10 @@ class QueryRequest(BaseModel):
     query: str
     session_id: Optional[str] = None
     web_search: Optional[bool] = False
+    documents: Optional[List[IngestedDocument]] = None
+
+class SyncDocumentsRequest(BaseModel):
+    documents: List[IngestedDocument]
 
 class QueryResponse(BaseModel):
     status: str
@@ -332,7 +347,21 @@ async def upload_files(
         "uploaded_count": len(new_docs),
         "documents": new_docs,
         "total_documents": len(session.documents),
-        "session_id": session.session_id
+        "session_id": session.session_id,
+        "full_documents": [doc.model_dump() for doc in session.documents.values()]
+    }
+
+@router.post("/documents/sync")
+def sync_documents(
+    req: SyncDocumentsRequest,
+    session_id: str = Depends(get_session_id)
+):
+    session = get_session(session_id)
+    count = session.rehydrate(req.documents)
+    return {
+        "status": "success",
+        "synced_count": count,
+        "total_documents": len(session.documents)
     }
 
 @router.post("/query", response_model=QueryResponse)
@@ -349,6 +378,10 @@ async def run_investigation(
 
     if not session.documents:
         session.load_store()
+
+    # Auto-rehydrate session if container lost state or client passed documents
+    if req.documents and (not session.documents or len(session.documents) < len(req.documents)):
+        session.rehydrate(req.documents)
 
     # Fast conversational check (only when web_search is not explicitly enabled)
     if not req.web_search:
@@ -425,7 +458,8 @@ def load_sample_case(session_id: str = Depends(get_session_id)):
         "status": "sample data loaded successfully",
         "documents": [doc.filename for doc in session.documents.values()],
         "suggested_query": "What is the final approved amount and deadline for Milestone 1?",
-        "session_id": session.session_id
+        "session_id": session.session_id,
+        "full_documents": [doc.model_dump() for doc in session.documents.values()]
     }
 
 # Mount router for both /api prefix and root level
