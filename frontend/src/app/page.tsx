@@ -43,6 +43,22 @@ interface IngestedDoc {
   created_at: string;
 }
 
+interface DocumentPage {
+  doc_id: string;
+  doc_name: string;
+  page_number: number;
+  content: string;
+}
+
+interface IngestedDocFull {
+  id: string;
+  filename: string;
+  file_type: string;
+  total_pages: number;
+  created_at: string;
+  pages: DocumentPage[];
+}
+
 interface Citation {
   doc_name: string;
   page_number: number;
@@ -257,7 +273,46 @@ export default function Home() {
   const [deviceId, setDeviceId] = useState<string>("");
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
   const [backendOnline, setBackendOnline] = useState(false);
-  const [documents, setDocuments] = useState<IngestedDoc[]>([]);
+  const [fullDocuments, setFullDocuments] = useState<IngestedDocFull[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const cached = localStorage.getItem("docv_full_docs");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [documents, setDocuments] = useState<IngestedDoc[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const cached = localStorage.getItem("docv_full_docs");
+      if (cached) {
+        const parsed: IngestedDocFull[] = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((d) => ({
+            id: d.id,
+            filename: d.filename,
+            file_type: d.file_type,
+            total_pages: d.total_pages,
+            created_at: d.created_at,
+          }));
+        }
+      }
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      if (fullDocuments && fullDocuments.length > 0) {
+        localStorage.setItem("docv_full_docs", JSON.stringify(fullDocuments));
+      } else {
+        localStorage.removeItem("docv_full_docs");
+      }
+    } catch {}
+  }, [fullDocuments]);
   const [inputQuery, setInputQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -333,7 +388,19 @@ export default function Home() {
       });
       if (res.ok) {
         const data = await res.json();
-        setDocuments(Array.isArray(data) ? data : []);
+        if (Array.isArray(data) && data.length > 0) {
+          setDocuments(data);
+        } else if (fullDocuments && fullDocuments.length > 0) {
+          // Backend instance is cold/empty, auto-sync our cached documents
+          fetch(`${apiUrl}/api/documents/sync`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-ID": sid,
+            },
+            body: JSON.stringify({ documents: fullDocuments }),
+          }).catch(() => {});
+        }
       }
     } catch (err) {
       console.error(err);
@@ -361,14 +428,21 @@ export default function Home() {
     setSessionId(sid);
     setDeviceId(did);
 
-    // Clear any stale cached documents
-    try {
-      localStorage.removeItem("docv_docs");
-    } catch (e) {}
-
     checkHealth(sid);
     fetchDocuments(sid);
     fetchRateLimit(did);
+
+    if (fullDocuments && fullDocuments.length > 0) {
+      fetch(`${apiUrl}/api/documents/sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-ID": sid,
+        },
+        body: JSON.stringify({ documents: fullDocuments }),
+      }).catch(() => {});
+    }
+
     const interval = setInterval(() => {
       checkHealth(sid);
       fetchRateLimit(did);
@@ -404,6 +478,10 @@ export default function Home() {
         throw new Error(errData.detail || "Failed to upload files");
       }
 
+      const data = await res.json();
+      if (data.full_documents) {
+        setFullDocuments(data.full_documents);
+      }
       await fetchDocuments(sid);
     } catch (err: any) {
       setError(err.message || "Upload failed");
@@ -436,6 +514,7 @@ export default function Home() {
         throw new Error("Failed to remove document");
       }
 
+      setFullDocuments((prev) => prev.filter((d) => d.id !== docId));
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
     } catch (err: any) {
       console.error("Failed to remove document:", err);
@@ -454,6 +533,9 @@ export default function Home() {
         headers: { "X-Session-ID": sid },
       });
       const data = await res.json();
+      if (data.full_documents) {
+        setFullDocuments(data.full_documents);
+      }
       await fetchDocuments(sid);
       const defaultQuery = data.suggested_query || "What is the final approved amount and deadline for Milestone 1?";
       executeInvestigation(defaultQuery);
@@ -472,8 +554,10 @@ export default function Home() {
         headers: { "X-Session-ID": sid },
       });
       setDocuments([]);
+      setFullDocuments([]);
       try {
         localStorage.removeItem("docv_docs");
+        localStorage.removeItem("docv_full_docs");
       } catch (e) {}
       setMessages([]);
       setActiveResult(null);
@@ -536,6 +620,7 @@ export default function Home() {
           query: q,
           session_id: sid,
           web_search: webSearchEnabled,
+          documents: fullDocuments && fullDocuments.length > 0 ? fullDocuments : undefined,
         }),
       });
 
