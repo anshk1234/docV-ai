@@ -141,6 +141,50 @@ class TestDocVPipelineTest1(unittest.TestCase):
                 shutil.rmtree(session.upload_dir, ignore_errors=True)
             main.SESSIONS.pop("test_sample_case_session", None)
 
+    def test_07_rate_limiter_24h_window(self):
+        import tempfile
+        from rate_limiter import RateLimiter
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
+            temp_path = tf.name
+
+        try:
+            limiter = RateLimiter(storage_path=temp_path, max_generations=3, window_seconds=86400)
+            user = "user_device_abc123"
+
+            # Initially 3 allowed
+            allowed, rem, _, _ = limiter.check_limit(user)
+            self.assertTrue(allowed)
+            self.assertEqual(rem, 3)
+
+            # Record 1st generation
+            rem1, _, _ = limiter.record_usage(user)
+            self.assertEqual(rem1, 2)
+
+            # Record 2nd generation
+            rem2, _, _ = limiter.record_usage(user)
+            self.assertEqual(rem2, 1)
+
+            # Record 3rd generation
+            rem3, reset_sec, _ = limiter.record_usage(user)
+            self.assertEqual(rem3, 0)
+            self.assertGreater(reset_sec, 0)
+
+            # 4th generation should be blocked
+            allowed4, rem4, reset_sec4, reset_human4 = limiter.check_limit(user)
+            self.assertFalse(allowed4)
+            self.assertEqual(rem4, 0)
+            self.assertGreater(reset_sec4, 0)
+            self.assertTrue("hour" in reset_human4 or "minute" in reset_human4 or "second" in reset_human4)
+
+            # Reload from disk to verify persistence across restarts
+            limiter_reloaded = RateLimiter(storage_path=temp_path, max_generations=3, window_seconds=86400)
+            allowed_reloaded, rem_reloaded, _, _ = limiter_reloaded.check_limit(user)
+            self.assertFalse(allowed_reloaded)
+            self.assertEqual(rem_reloaded, 0)
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
 
 if __name__ == "__main__":
     unittest.main()

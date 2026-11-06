@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from ingest import ingest_file, IngestedDocument, DocumentPage
 from indexer import HybridDocumentIndex
 from investigator import investigate_query, InvestigationResult, check_conversational_query
+from rate_limiter import RATE_LIMITER
 
 load_dotenv()
 
@@ -209,6 +210,28 @@ def get_session_id(
             return clean_id[:64]
     return "default_session"
 
+def get_client_key(
+    request: Request,
+    x_device_id: Optional[str] = Header(None, alias="X-Device-ID")
+) -> str:
+    raw_device = (
+        x_device_id
+        or request.headers.get("x-device-id")
+        or request.query_params.get("device_id")
+    )
+    if raw_device and raw_device.strip():
+        clean_dev = "".join(c for c in raw_device.strip() if c.isalnum() or c in "-_")
+        if clean_dev:
+            return f"dev_{clean_dev[:64]}"
+
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else "unknown_client"
+    clean_ip = "".join(c for c in client_ip if c.isalnum() or c in ".-_:")
+    return f"ip_{clean_ip[:64]}"
+
 # Backward-compatibility handles for external scripts
 DEFAULT_SESSION = get_session("default_session")
 DOCUMENTS = DEFAULT_SESSION.documents
@@ -222,6 +245,7 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     status: str
     result: InvestigationResult
+    rate_limit: Optional[Dict] = None
 
 router = APIRouter()
 
@@ -236,6 +260,10 @@ def root(session_id: str = Depends(get_session_id)):
         "total_chunks_indexed": len(session.index.chunks),
         "session_id": session.session_id
     }
+
+@router.get("/rate-limit")
+def get_rate_limit(client_key: str = Depends(get_client_key)):
+    return RATE_LIMITER.get_status(client_key)
 
 @router.get("/documents")
 def list_documents(session_id: str = Depends(get_session_id)):
@@ -310,7 +338,8 @@ async def upload_files(
 @router.post("/query", response_model=QueryResponse)
 async def run_investigation(
     req: QueryRequest,
-    session_id: str = Depends(get_session_id)
+    session_id: str = Depends(get_session_id),
+    client_key: str = Depends(get_client_key)
 ):
     effective_session_id = req.session_id or session_id
     session = get_session(effective_session_id)
@@ -325,12 +354,28 @@ async def run_investigation(
     if not req.web_search:
         conv_result = check_conversational_query(req.query, has_documents=bool(session.documents))
         if conv_result:
-            return QueryResponse(status="success", result=conv_result)
+            return QueryResponse(status="success", result=conv_result, rate_limit=RATE_LIMITER.get_status(client_key))
 
     if not session.documents and not req.web_search:
         raise HTTPException(
             status_code=400,
             detail="No documents have been uploaded yet. Please upload documents first or load sample case files."
+        )
+
+    # Rate limiting enforcement for AI generations
+    allowed, remaining, reset_in_sec, reset_human = RATE_LIMITER.check_limit(client_key)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "RATE_LIMIT_EXCEEDED",
+                "message": f"Daily generation limit reached for this device (3/3 generations). You can generate again in {reset_human}.",
+                "limit": RATE_LIMITER.max_generations,
+                "used": RATE_LIMITER.max_generations,
+                "remaining": 0,
+                "reset_in_seconds": reset_in_sec,
+                "reset_in_human": reset_human
+            }
         )
 
     # Retrieve top relevant context chunks across documents in this session only
@@ -344,7 +389,18 @@ async def run_investigation(
         all_doc_names,
         bool(req.web_search)
     )
-    return QueryResponse(status="success", result=result)
+
+    # Record 1 generation usage upon successful generation
+    rem, r_sec, r_human = RATE_LIMITER.record_usage(client_key)
+    rate_info = {
+        "limit": RATE_LIMITER.max_generations,
+        "used": RATE_LIMITER.max_generations - rem,
+        "remaining": rem,
+        "reset_in_seconds": r_sec,
+        "reset_in_human": r_human
+    }
+
+    return QueryResponse(status="success", result=result, rate_limit=rate_info)
 
 @router.post("/reset")
 def reset_workspace(session_id: str = Depends(get_session_id)):

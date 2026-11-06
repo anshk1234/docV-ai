@@ -77,6 +77,14 @@ interface Message {
   timestamp: string;
 }
 
+interface RateLimitInfo {
+  limit: number;
+  used: number;
+  remaining: number;
+  reset_in_seconds: number;
+  reset_in_human: string;
+}
+
 function extractConflictSummary(item: ConflictItem): string {
   const amountPattern = /\$[\d,]+(?:\.\d+)?/g;
   const amountsA = item.claim_a.match(amountPattern) || [];
@@ -219,6 +227,22 @@ function getClientSessionId(): string {
   }
 }
 
+function getClientDeviceId(): string {
+  if (typeof window === "undefined") return "default_device";
+  try {
+    let did = localStorage.getItem("docv_device_id");
+    if (!did) {
+      did = (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function")
+        ? crypto.randomUUID()
+        : `dev_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      localStorage.setItem("docv_device_id", did);
+    }
+    return did;
+  } catch {
+    return "default_device";
+  }
+}
+
 export default function Home() {
   const [apiUrl] = useState(() => {
     if (process.env.NEXT_PUBLIC_API_URL) {
@@ -230,6 +254,8 @@ export default function Home() {
     return "";
   });
   const [sessionId, setSessionId] = useState<string>("");
+  const [deviceId, setDeviceId] = useState<string>("");
+  const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
   const [backendOnline, setBackendOnline] = useState(false);
   const [documents, setDocuments] = useState<IngestedDoc[]>([]);
   const [inputQuery, setInputQuery] = useState("");
@@ -314,9 +340,26 @@ export default function Home() {
     }
   };
 
+  const fetchRateLimit = async (overrideDevId?: string) => {
+    const dev = overrideDevId || deviceId || getClientDeviceId();
+    try {
+      const res = await fetch(`${apiUrl}/api/rate-limit`, {
+        headers: { "X-Device-ID": dev },
+      });
+      if (res.ok) {
+        const data: RateLimitInfo = await res.json();
+        setRateLimit(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch rate limit:", err);
+    }
+  };
+
   useEffect(() => {
     const sid = getClientSessionId();
+    const did = getClientDeviceId();
     setSessionId(sid);
+    setDeviceId(did);
 
     // Clear any stale cached documents
     try {
@@ -325,7 +368,11 @@ export default function Home() {
 
     checkHealth(sid);
     fetchDocuments(sid);
-    const interval = setInterval(() => checkHealth(sid), 10000);
+    fetchRateLimit(did);
+    const interval = setInterval(() => {
+      checkHealth(sid);
+      fetchRateLimit(did);
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -462,12 +509,28 @@ export default function Home() {
     setError(null);
 
     const sid = sessionId || getClientSessionId();
+    const did = deviceId || getClientDeviceId();
+
+    // Preemptive rate-limit check if user is already at 0
+    if (rateLimit && rateLimit.remaining === 0) {
+      const limitMsg: Message = {
+        id: Math.random().toString(),
+        sender: "docv",
+        text: `⚠️ **Daily Generation Limit Reached (3 of 3)**\n\nYou have used all 3 AI document investigations for today to protect API capacity.\n\n⏳ **Next generation available in:** ${rateLimit.reset_in_human || "24 hours"}.\n\nYou can continue reviewing previously ingested documents, citations, and contradiction dossiers in your workspace.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, limitMsg]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${apiUrl}/api/query`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Session-ID": sid,
+          "X-Device-ID": did,
         },
         body: JSON.stringify({
           query: q,
@@ -477,11 +540,38 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "Investigation query failed");
+        const errData = await res.json().catch(() => ({}));
+        // Catch Rate Limit Exceeded (HTTP 429)
+        if (res.status === 429 || errData.detail?.error === "RATE_LIMIT_EXCEEDED") {
+          const detail = errData.detail;
+          const resetHuman = (typeof detail === "object" && detail?.reset_in_human) ? detail.reset_in_human : (rateLimit?.reset_in_human || "24 hours");
+          const limitMsg: Message = {
+            id: Math.random().toString(),
+            sender: "docv",
+            text: `⚠️ **Daily Generation Limit Reached (3 of 3)**\n\nYou have used all 3 AI document investigations allocated for this 24-hour cycle to prevent API exhaustion.\n\n⏳ **Next generation available in:** ${resetHuman}.\n\nYou can continue reviewing previously loaded documents, citations, and contradiction dossiers.`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          };
+          setMessages((prev) => [...prev, limitMsg]);
+          if (typeof detail === "object") {
+            setRateLimit({
+              limit: detail.limit || 3,
+              used: detail.used || 3,
+              remaining: 0,
+              reset_in_seconds: detail.reset_in_seconds || 86400,
+              reset_in_human: resetHuman,
+            });
+          } else {
+            fetchRateLimit(did);
+          }
+          return;
+        }
+        throw new Error(typeof errData.detail === "string" ? errData.detail : (errData.detail?.message || "Investigation query failed"));
       }
 
       const data = await res.json();
+      if (data.rate_limit) {
+        setRateLimit(data.rate_limit);
+      }
       if (data.result?.synthesized_answer) {
         data.result.synthesized_answer = data.result.synthesized_answer.replace(
           /^(#+\s*|\*\*)?Forensic Audit:?\s*(\*\*)?\s*/i,
@@ -1093,6 +1183,28 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-2.5">
+            {rateLimit && (
+              <div
+                className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
+                  rateLimit.remaining > 0
+                    ? "bg-[var(--surface-raised)] border-[var(--border)] text-[var(--text-muted)]"
+                    : "bg-red-950/40 border-red-800/60 text-red-300"
+                }`}
+                title={
+                  rateLimit.remaining > 0
+                    ? `${rateLimit.remaining} of ${rateLimit.limit} daily investigations remaining`
+                    : `Daily limit reached. Resets in ${rateLimit.reset_in_human}`
+                }
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${rateLimit.remaining > 0 ? "bg-emerald-400" : "bg-red-400"}`} />
+                <span>
+                  {rateLimit.remaining > 0
+                    ? `${rateLimit.remaining}/${rateLimit.limit} queries left today`
+                    : `Limit reached (${rateLimit.reset_in_human})`}
+                </span>
+              </div>
+            )}
+
             <a
               href="https://github.com/anshk1234/docV-ai"
               target="_blank"
@@ -1427,6 +1539,16 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
                 </div>
               )}
 
+              {/* Rate limit warning banner if reached */}
+              {rateLimit && rateLimit.remaining === 0 && (
+                <div className="flex items-center justify-between gap-2 px-3 py-1.5 mb-2 rounded-xl bg-red-950/30 border border-red-800/40 text-xs text-red-300">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                    <span>Daily generation limit reached (3/3). Next available in <strong>{rateLimit.reset_in_human}</strong>.</span>
+                  </div>
+                </div>
+              )}
+
               {/* Row 2: Plus button, textarea, web search toggle, circular send button */}
               <div className="flex items-end gap-2 px-1">
                 {/* Plus button for file upload */}
@@ -1465,17 +1587,19 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      if (!loading && inputQuery.trim() && (documents.length > 0 || webSearchEnabled)) {
+                      if (!loading && inputQuery.trim() && (documents.length > 0 || webSearchEnabled) && !(rateLimit && rateLimit.remaining === 0)) {
                         executeInvestigation();
                       }
                     }
                   }}
                   placeholder={
-                    webSearchEnabled
-                      ? "Search the live web or cross-reference documents with live web..."
-                      : documents.length === 0
-                        ? "Load demo case or add documents to start investigating..."
-                        : "Ask docV.ai to audit, compare, or uncover conflicts..."
+                    rateLimit && rateLimit.remaining === 0
+                      ? `Daily limit reached (3/3 generations). Resets in ${rateLimit.reset_in_human}`
+                      : webSearchEnabled
+                        ? "Search the live web or cross-reference documents with live web..."
+                        : documents.length === 0
+                          ? "Load demo case or add documents to start investigating..."
+                          : "Ask docV.ai to audit, compare, or uncover conflicts..."
                   }
                   className="flex-1 bg-transparent border-0 text-[15px] text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none resize-none max-h-36 min-h-[36px] py-1.5 px-1 leading-relaxed"
                 />
@@ -1498,9 +1622,9 @@ function generateReportPdf(result: InvestigationResult): Uint8Array {
                 {/* Circular Send Button */}
                 <button
                   onClick={() => executeInvestigation()}
-                  disabled={loading || !inputQuery.trim() || (documents.length === 0 && !webSearchEnabled)}
+                  disabled={loading || !inputQuery.trim() || (documents.length === 0 && !webSearchEnabled) || (rateLimit !== null && rateLimit.remaining === 0)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition flex-shrink-0 mb-0.5 ${
-                    !loading && inputQuery.trim() && (documents.length > 0 || webSearchEnabled)
+                    !loading && inputQuery.trim() && (documents.length > 0 || webSearchEnabled) && !(rateLimit && rateLimit.remaining === 0)
                       ? "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white cursor-pointer"
                       : "bg-[var(--surface)] text-[var(--text-muted)]/40 cursor-not-allowed"
                   }`}
