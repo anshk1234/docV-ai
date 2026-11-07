@@ -243,6 +243,12 @@ def get_client_key(
     clean_ip = "".join(c for c in client_ip if c.isalnum() or c in ".-_:")
     return f"ip_{clean_ip[:64]}"
 
+def get_ratelimit_token(
+    request: Request,
+    x_ratelimit_token: Optional[str] = Header(None, alias="X-RateLimit-Token")
+) -> Optional[str]:
+    return x_ratelimit_token or request.headers.get("x-ratelimit-token")
+
 # Backward-compatibility handles for external scripts
 DEFAULT_SESSION = get_session("default_session")
 DOCUMENTS = DEFAULT_SESSION.documents
@@ -253,6 +259,7 @@ class QueryRequest(BaseModel):
     session_id: Optional[str] = None
     web_search: Optional[bool] = False
     documents: Optional[List[IngestedDocument]] = None
+    rate_limit_token: Optional[str] = None
 
 class SyncDocumentsRequest(BaseModel):
     documents: List[IngestedDocument]
@@ -277,8 +284,11 @@ def root(session_id: str = Depends(get_session_id)):
     }
 
 @router.get("/rate-limit")
-def get_rate_limit(client_key: str = Depends(get_client_key)):
-    return RATE_LIMITER.get_status(client_key)
+def get_rate_limit(
+    client_key: str = Depends(get_client_key),
+    rate_token: Optional[str] = Depends(get_ratelimit_token)
+):
+    return RATE_LIMITER.get_status(client_key, token=rate_token)
 
 @router.get("/documents")
 def list_documents(session_id: str = Depends(get_session_id)):
@@ -368,10 +378,12 @@ def sync_documents(
 async def run_investigation(
     req: QueryRequest,
     session_id: str = Depends(get_session_id),
-    client_key: str = Depends(get_client_key)
+    client_key: str = Depends(get_client_key),
+    rate_token: Optional[str] = Depends(get_ratelimit_token)
 ):
     effective_session_id = req.session_id or session_id
     session = get_session(effective_session_id)
+    effective_token = req.rate_limit_token or rate_token
 
     if not req.query or req.query.strip() == "":
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
@@ -387,7 +399,7 @@ async def run_investigation(
     if not req.web_search:
         conv_result = check_conversational_query(req.query, has_documents=bool(session.documents))
         if conv_result:
-            return QueryResponse(status="success", result=conv_result, rate_limit=RATE_LIMITER.get_status(client_key))
+            return QueryResponse(status="success", result=conv_result, rate_limit=RATE_LIMITER.get_status(client_key, token=effective_token))
 
     if not session.documents and not req.web_search:
         raise HTTPException(
@@ -396,7 +408,7 @@ async def run_investigation(
         )
 
     # Rate limiting enforcement for AI generations
-    allowed, remaining, reset_in_sec, reset_human = RATE_LIMITER.check_limit(client_key)
+    allowed, remaining, reset_in_sec, reset_human, signed_token = RATE_LIMITER.check_limit(client_key, token=effective_token)
     if not allowed:
         raise HTTPException(
             status_code=429,
@@ -407,7 +419,8 @@ async def run_investigation(
                 "used": RATE_LIMITER.max_generations,
                 "remaining": 0,
                 "reset_in_seconds": reset_in_sec,
-                "reset_in_human": reset_human
+                "reset_in_human": reset_human,
+                "token": signed_token
             }
         )
 
@@ -424,13 +437,14 @@ async def run_investigation(
     )
 
     # Record 1 generation usage upon successful generation
-    rem, r_sec, r_human = RATE_LIMITER.record_usage(client_key)
+    rem, r_sec, r_human, new_token = RATE_LIMITER.record_usage(client_key, token=effective_token)
     rate_info = {
         "limit": RATE_LIMITER.max_generations,
         "used": RATE_LIMITER.max_generations - rem,
         "remaining": rem,
         "reset_in_seconds": r_sec,
-        "reset_in_human": r_human
+        "reset_in_human": r_human,
+        "token": new_token
     }
 
     return QueryResponse(status="success", result=result, rate_limit=rate_info)
