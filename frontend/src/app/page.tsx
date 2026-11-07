@@ -99,6 +99,7 @@ interface RateLimitInfo {
   remaining: number;
   reset_in_seconds: number;
   reset_in_human: string;
+  token?: string;
 }
 
 function extractConflictSummary(item: ConflictItem): string {
@@ -272,6 +273,22 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string>("");
   const [deviceId, setDeviceId] = useState<string>("");
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
+  const [rateLimitToken, setRateLimitToken] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return localStorage.getItem("docv_rate_limit_token") || "";
+    } catch {
+      return "";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (rateLimitToken) {
+        localStorage.setItem("docv_rate_limit_token", rateLimitToken);
+      }
+    } catch {}
+  }, [rateLimitToken]);
   const [backendOnline, setBackendOnline] = useState(false);
   const [fullDocuments, setFullDocuments] = useState<IngestedDocFull[]>(() => {
     if (typeof window === "undefined") return [];
@@ -409,13 +426,19 @@ export default function Home() {
 
   const fetchRateLimit = async (overrideDevId?: string) => {
     const dev = overrideDevId || deviceId || getClientDeviceId();
+    const token = rateLimitToken || (typeof window !== "undefined" ? localStorage.getItem("docv_rate_limit_token") || "" : "");
     try {
-      const res = await fetch(`${apiUrl}/api/rate-limit`, {
-        headers: { "X-Device-ID": dev },
-      });
+      const headers: Record<string, string> = { "X-Device-ID": dev };
+      if (token) {
+        headers["X-RateLimit-Token"] = token;
+      }
+      const res = await fetch(`${apiUrl}/api/rate-limit`, { headers });
       if (res.ok) {
         const data: RateLimitInfo = await res.json();
         setRateLimit(data);
+        if (data.token) {
+          setRateLimitToken(data.token);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch rate limit:", err);
@@ -608,19 +631,25 @@ export default function Home() {
       return;
     }
 
+    const token = rateLimitToken || (typeof window !== "undefined" ? localStorage.getItem("docv_rate_limit_token") || "" : "");
     try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-Session-ID": sid,
+        "X-Device-ID": did,
+      };
+      if (token) {
+        headers["X-RateLimit-Token"] = token;
+      }
       const res = await fetch(`${apiUrl}/api/query`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-ID": sid,
-          "X-Device-ID": did,
-        },
+        headers,
         body: JSON.stringify({
           query: q,
           session_id: sid,
           web_search: webSearchEnabled,
           documents: fullDocuments && fullDocuments.length > 0 ? fullDocuments : undefined,
+          rate_limit_token: token || undefined,
         }),
       });
 
@@ -630,6 +659,9 @@ export default function Home() {
         if (res.status === 429 || errData.detail?.error === "RATE_LIMIT_EXCEEDED") {
           const detail = errData.detail;
           const resetHuman = (typeof detail === "object" && detail?.reset_in_human) ? detail.reset_in_human : (rateLimit?.reset_in_human || "24 hours");
+          if (typeof detail === "object" && detail?.token) {
+            setRateLimitToken(detail.token);
+          }
           const limitMsg: Message = {
             id: Math.random().toString(),
             sender: "docv",
@@ -644,6 +676,7 @@ export default function Home() {
               remaining: 0,
               reset_in_seconds: detail.reset_in_seconds || 86400,
               reset_in_human: resetHuman,
+              token: detail.token,
             });
           } else {
             fetchRateLimit(did);
@@ -656,6 +689,9 @@ export default function Home() {
       const data = await res.json();
       if (data.rate_limit) {
         setRateLimit(data.rate_limit);
+        if (data.rate_limit.token) {
+          setRateLimitToken(data.rate_limit.token);
+        }
       }
       if (data.result?.synthesized_answer) {
         data.result.synthesized_answer = data.result.synthesized_answer.replace(

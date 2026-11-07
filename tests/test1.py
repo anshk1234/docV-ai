@@ -152,35 +152,48 @@ class TestDocVPipelineTest1(unittest.TestCase):
             user = "user_device_abc123"
 
             # Initially 3 allowed
-            allowed, rem, _, _ = limiter.check_limit(user)
+            allowed, rem, _, _, tok = limiter.check_limit(user)
             self.assertTrue(allowed)
             self.assertEqual(rem, 3)
+            self.assertIsNotNone(tok)
 
             # Record 1st generation
-            rem1, _, _ = limiter.record_usage(user)
+            rem1, _, _, tok1 = limiter.record_usage(user, token=tok)
             self.assertEqual(rem1, 2)
 
             # Record 2nd generation
-            rem2, _, _ = limiter.record_usage(user)
+            rem2, _, _, tok2 = limiter.record_usage(user, token=tok1)
             self.assertEqual(rem2, 1)
 
             # Record 3rd generation
-            rem3, reset_sec, _ = limiter.record_usage(user)
+            rem3, reset_sec, _, tok3 = limiter.record_usage(user, token=tok2)
             self.assertEqual(rem3, 0)
             self.assertGreater(reset_sec, 0)
 
             # 4th generation should be blocked
-            allowed4, rem4, reset_sec4, reset_human4 = limiter.check_limit(user)
+            allowed4, rem4, reset_sec4, reset_human4, tok4 = limiter.check_limit(user, token=tok3)
             self.assertFalse(allowed4)
             self.assertEqual(rem4, 0)
             self.assertGreater(reset_sec4, 0)
             self.assertTrue("hour" in reset_human4 or "minute" in reset_human4 or "second" in reset_human4)
 
-            # Reload from disk to verify persistence across restarts
-            limiter_reloaded = RateLimiter(storage_path=temp_path, max_generations=3, window_seconds=86400)
-            allowed_reloaded, rem_reloaded, _, _ = limiter_reloaded.check_limit(user)
-            self.assertFalse(allowed_reloaded)
-            self.assertEqual(rem_reloaded, 0)
+            # Multi-container cold-start verification:
+            # Create container 2 with a completely different/empty storage path
+            with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf2:
+                temp_path2 = tf2.name
+            try:
+                container2 = RateLimiter(storage_path=temp_path2, max_generations=3, window_seconds=86400)
+                # Without token, container 2 would think it's 3 remaining
+                _, rem_no_tok, _, _, _ = container2.check_limit(user)
+                self.assertEqual(rem_no_tok, 3)
+
+                # With token, container 2 immediately synchronizes across instances
+                allowed_c2, rem_c2, _, _, _ = container2.check_limit(user, token=tok3)
+                self.assertFalse(allowed_c2)
+                self.assertEqual(rem_c2, 0)
+            finally:
+                if os.path.exists(temp_path2):
+                    os.remove(temp_path2)
         finally:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
